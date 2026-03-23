@@ -87,7 +87,8 @@ export function createToolDefinitions() {
           height: { type: "number", description: "Viewport height in pixels (default: 720)" },
           timeout: { type: "number", description: "Navigation timeout in milliseconds" },
           waitUntil: { type: "string", description: "Navigation wait condition" },
-          headless: { type: "boolean", description: "Run browser in headless mode (default: false)" }
+          headless: { type: "boolean", description: "Run browser in headless mode (default: false)" },
+          isolatedContext: { type: "string", description: "Create or reuse a named isolated browser context with separate cookies and storage. Pages in different contexts are fully isolated (different sessions). Omit for the default shared context." }
         },
         required: ["url"],
       },
@@ -288,6 +289,26 @@ export function createToolDefinitions() {
           }
         },
         required: ["mode"]
+      }
+    },
+    {
+      name: "playwright_list_pages",
+      description: "List all open pages across all browser contexts. Shows page index, URL, and context name. Use the index with playwright_select_page to switch between pages.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    },
+    {
+      name: "playwright_select_page",
+      description: "Switch the active page by its index (from playwright_list_pages). All subsequent browser tool calls will operate on this page.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          index: { type: "number", description: "Page index from playwright_list_pages" }
+        },
+        required: ["index"]
       }
     },
     {
@@ -611,6 +632,8 @@ export const BROWSER_TOOLS = [
   "playwright_resize",
   "playwright_close",
   "playwright_set_browser_mode",
+  "playwright_list_pages",
+  "playwright_select_page",
   "playwright_expect_response",
   "playwright_assert_response",
   "playwright_custom_user_agent",

@@ -63,6 +63,11 @@ export class BrowserManager {
   private consoleRegisterFn?: (page: Page) => Promise<void>;
   private dockerManager: DockerManager | undefined;
 
+  // Isolated context support
+  private contexts: Map<string, BrowserContext> = new Map();
+  private pages: Array<{ page: Page; contextName: string }> = [];
+  private activePageIndex: number = -1;
+
   constructor(config: Partial<BrowserManagerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
@@ -191,12 +196,16 @@ export class BrowserManager {
   /**
    * Ensure browser is launched and return the page.
    * This is the main entry point called by toolHandler.
+   *
+   * When isolatedContext is provided, creates or reuses a named BrowserContext
+   * with separate cookies/storage. Each context gets its own stealth fingerprint.
    */
   async ensureBrowser(overrides?: {
     viewport?: { width?: number; height?: number };
     userAgent?: string;
     headless?: boolean;
     browserType?: 'chromium' | 'firefox' | 'webkit';
+    isolatedContext?: string;
   }): Promise<Page> {
     // Check if browser exists but is disconnected
     if (this.browser && !this.browser.isConnected()) {
@@ -209,17 +218,95 @@ export class BrowserManager {
       await this.launch(overrides);
     }
 
-    // Verify page is still valid
-    if (!this.page || this.page.isClosed()) {
-      const ctx = this.browser!.contexts()[0] || await this.browser!.newContext();
-      this.page = await ctx.newPage();
-      this.networkCapture.attachToPage(this.page);
-      if (this.consoleRegisterFn) {
-        await this.consoleRegisterFn(this.page);
+    // Handle isolated context request
+    if (overrides?.isolatedContext) {
+      const name = overrides.isolatedContext;
+      let ctx = this.contexts.get(name);
+
+      if (!ctx) {
+        // Create a new isolated context with its own stealth fingerprint
+        ctx = await this.createContextWithStealth(overrides);
+        this.contexts.set(name, ctx);
       }
+
+      // Check if we already have a non-closed page in this context
+      const existingEntry = this.pages.find(
+        (entry) => entry.contextName === name && !entry.page.isClosed()
+      );
+      if (existingEntry) {
+        // Switch to the existing page
+        const idx = this.pages.indexOf(existingEntry);
+        this.activePageIndex = idx;
+        this.page = existingEntry.page;
+        await this.page.bringToFront();
+        this.networkCapture.attachToPage(this.page);
+        return this.page;
+      }
+
+      // Create a new page in the isolated context
+      return await this.createPageInContext(ctx, name);
+    }
+
+    // Default path: no isolated context
+    if (!this.page || this.page.isClosed()) {
+      // Create default context if it doesn't exist yet
+      if (!this.context) {
+        this.context = await this.createContextWithStealth(overrides);
+      }
+      await this.createPageInContext(this.context, 'default');
     }
 
     return this.page!;
+  }
+
+  /**
+   * Create a new BrowserContext with stealth fingerprint applied.
+   * Reusable helper for both initial launch and isolated context creation.
+   */
+  private async createContextWithStealth(overrides?: {
+    viewport?: { width?: number; height?: number };
+    userAgent?: string;
+  }): Promise<BrowserContext> {
+    const viewport = this.config.stealth
+      ? STEALTH_VIEWPORT
+      : {
+          width: overrides?.viewport?.width ?? DEFAULT_VIEWPORT.width,
+          height: overrides?.viewport?.height ?? DEFAULT_VIEWPORT.height,
+        };
+
+    const contextOptions: Record<string, any> = {
+      viewport,
+      deviceScaleFactor: 1,
+      ...(overrides?.userAgent && { userAgent: overrides.userAgent }),
+    };
+
+    if (this.config.stealth) {
+      const fpOptions = this.stealthManager.buildContextOptions(this.config.browserType);
+      Object.assign(contextOptions, fpOptions);
+    }
+
+    const context = await this.browser!.newContext(contextOptions);
+
+    if (this.config.stealth) {
+      await this.stealthManager.injectFingerprint(context);
+    }
+
+    return context;
+  }
+
+  /**
+   * Create a new page in a context and set it as active.
+   */
+  private async createPageInContext(context: BrowserContext, contextName: string): Promise<Page> {
+    const page = await context.newPage();
+    this.networkCapture.attachToPage(page);
+    if (this.consoleRegisterFn) {
+      await this.consoleRegisterFn(page);
+    }
+    this.pages.push({ page, contextName });
+    this.activePageIndex = this.pages.length - 1;
+    this.page = page;
+    return page;
   }
 
   /**
@@ -250,8 +337,6 @@ export class BrowserManager {
     this.dockerManager = new DockerManager();
     const wsEndpoint = await this.dockerManager.start(this.config.browserType);
 
-    // Connect to the remote browser via WebSocket using standard playwright
-    // (patchright is irrelevant in docker mode — the browser runs headed inside Xvfb)
     const playwright = await import('playwright');
     const browserType = this.config.browserType === 'webkit'
       ? playwright.webkit
@@ -261,38 +346,6 @@ export class BrowserManager {
 
     this.browser = await browserType.connect(wsEndpoint);
     this.browser.on('disconnected', () => this.reset());
-
-    // Create context with stealth fingerprint if enabled
-    const viewport = this.config.stealth
-      ? STEALTH_VIEWPORT
-      : {
-          width: overrides?.viewport?.width ?? DEFAULT_VIEWPORT.width,
-          height: overrides?.viewport?.height ?? DEFAULT_VIEWPORT.height,
-        };
-
-    const contextOptions: Record<string, any> = {
-      viewport,
-      deviceScaleFactor: 1,
-      ...(overrides?.userAgent && { userAgent: overrides.userAgent }),
-    };
-
-    if (this.config.stealth) {
-      const fpOptions = this.stealthManager.buildContextOptions(this.config.browserType);
-      Object.assign(contextOptions, fpOptions);
-    }
-
-    this.context = await this.browser.newContext(contextOptions);
-
-    if (this.config.stealth) {
-      await this.stealthManager.injectFingerprint(this.context);
-    }
-
-    this.page = await this.context.newPage();
-    this.networkCapture.attachToPage(this.page);
-
-    if (this.consoleRegisterFn) {
-      await this.consoleRegisterFn(this.page);
-    }
   }
 
   /**
@@ -337,43 +390,6 @@ export class BrowserManager {
     }
 
     this.browser!.on('disconnected', () => this.reset());
-
-    // Create context with stealth fingerprint if enabled
-    const viewport = this.config.stealth
-      ? STEALTH_VIEWPORT
-      : {
-          width: overrides?.viewport?.width ?? DEFAULT_VIEWPORT.width,
-          height: overrides?.viewport?.height ?? DEFAULT_VIEWPORT.height,
-        };
-
-    const contextOptions: Record<string, any> = {
-      viewport,
-      deviceScaleFactor: 1,
-      ...(overrides?.userAgent && { userAgent: overrides.userAgent }),
-    };
-
-    // Apply fingerprint if stealth is enabled
-    if (this.config.stealth) {
-      const fpOptions = this.stealthManager.buildContextOptions(this.config.browserType);
-      Object.assign(contextOptions, fpOptions);
-    }
-
-    this.context = await this.browser!.newContext(contextOptions);
-
-    // Inject fingerprint into context if stealth
-    if (this.config.stealth) {
-      await this.stealthManager.injectFingerprint(this.context);
-    }
-
-    this.page = await this.context.newPage();
-
-    // Attach network capture
-    this.networkCapture.attachToPage(this.page);
-
-    // Register console messages (backward compat)
-    if (this.consoleRegisterFn) {
-      await this.consoleRegisterFn(this.page);
-    }
   }
 
   getBrowser(): Browser | undefined {
@@ -388,12 +404,62 @@ export class BrowserManager {
     this.page = newPage;
     this.page.bringToFront();
     this.networkCapture.attachToPage(newPage);
+
+    // Track the page if not already tracked (e.g. from ClickAndSwitchTabTool)
+    const alreadyTracked = this.pages.some((entry) => entry.page === newPage);
+    if (!alreadyTracked) {
+      this.pages.push({ page: newPage, contextName: 'default' });
+      this.activePageIndex = this.pages.length - 1;
+    }
+  }
+
+  /**
+   * Get info about all tracked pages (compacts out closed pages).
+   */
+  getPages(): Array<{ index: number; url: string; contextName: string; isActive: boolean }> {
+    // Compact: remove closed pages
+    this.pages = this.pages.filter((entry) => !entry.page.isClosed());
+    // Fix activePageIndex after compaction
+    if (this.page) {
+      this.activePageIndex = this.pages.findIndex((entry) => entry.page === this.page);
+    }
+    return this.pages.map((entry, idx) => ({
+      index: idx,
+      url: entry.page.url(),
+      contextName: entry.contextName,
+      isActive: idx === this.activePageIndex,
+    }));
+  }
+
+  /**
+   * Switch the active page by index.
+   */
+  async switchToPage(index: number): Promise<Page> {
+    // Compact closed pages first
+    this.pages = this.pages.filter((entry) => !entry.page.isClosed());
+
+    if (index < 0 || index >= this.pages.length) {
+      throw new Error(`Invalid page index ${index}. Available: 0-${this.pages.length - 1}`);
+    }
+
+    const entry = this.pages[index];
+    this.activePageIndex = index;
+    this.page = entry.page;
+    await this.page.bringToFront();
+    this.networkCapture.attachToPage(this.page);
+    if (this.consoleRegisterFn) {
+      await this.consoleRegisterFn(this.page);
+    }
+    return this.page;
   }
 
   reset(): void {
     this.browser = undefined;
     this.page = undefined;
     this.context = undefined;
+    this.contexts.clear();
+    this.pages = [];
+    this.activePageIndex = -1;
     this.networkCapture.clear();
   }
 

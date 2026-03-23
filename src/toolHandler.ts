@@ -302,6 +302,29 @@ export async function handleToolCall(
       };
     }
 
+    // Special case for listing pages (no browser launch needed)
+    if (name === "playwright_list_pages") {
+      const pages = mgr.getPages();
+      const text = pages.length === 0
+        ? "No pages open."
+        : pages.map(p =>
+            `[${p.index}] ${p.url} (context: ${p.contextName})${p.isActive ? " *active*" : ""}`
+          ).join("\n");
+      return {
+        content: [{ type: "text", text }],
+        isError: false,
+      };
+    }
+
+    // Special case for switching active page
+    if (name === "playwright_select_page") {
+      const page = await mgr.switchToPage(args.index);
+      return {
+        content: [{ type: "text", text: `Switched to page [${args.index}]: ${page.url()}` }],
+        isError: false,
+      };
+    }
+
     // Check if we have a disconnected browser that needs cleanup
     const currentBrowser = mgr.getBrowser();
     if (currentBrowser && !currentBrowser.isConnected() && BROWSER_TOOLS.includes(name)) {
@@ -319,6 +342,7 @@ export async function handleToolCall(
           userAgent: name === "playwright_custom_user_agent" ? args.userAgent : undefined,
           headless: args.headless,
           browserType: args.browserType,
+          isolatedContext: args.isolatedContext,
         });
         context.browser = mgr.getBrowser();
       } catch (error) {
