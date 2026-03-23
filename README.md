@@ -1,25 +1,76 @@
-<div align="center" markdown="1">
-  <table>
-    <tr>
-      <td align="center" valign="middle">
-        <a href="https://mseep.ai/app/executeautomation-mcp-playwright">
-          <img src="https://mseep.net/pr/executeautomation-mcp-playwright-badge.png" alt="MseeP.ai Security Assessment Badge" height="80"/>
-        </a>
-      </td>
-    </tr>
-    <tr>
-      <td align="center"><sub>MseeP.ai Security Assessment</sub></td>
-    </tr>
-  </table>
-</div>
-<hr>
+# Playwright MCP Server (Stealth Edition)
 
-# Playwright MCP Server 🎭
+> Fork of [executeautomation/mcp-playwright](https://github.com/executeautomation/mcp-playwright) with stealth browser automation, anti-bot-detection, cross-origin iframe support, and network inspection.
 
-[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/executeautomation/mcp-playwright)](https://archestra.ai/mcp-catalog/executeautomation__mcp-playwright)
-[![smithery badge](https://smithery.ai/badge/@executeautomation/playwright-mcp-server)](https://smithery.ai/server/@executeautomation/playwright-mcp-server)
+A Model Context Protocol server that provides **stealth** browser automation using Playwright and [Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright). Designed for LLM agents that need to interact with web pages without being detected as bots.
 
-A Model Context Protocol server that provides browser automation capabilities using Playwright. This server enables LLMs to interact with web pages, take screenshots, generate test code, web scrapes the page and execute JavaScript in a real browser environment.
+## Key Differences from Upstream
+
+- **Configurable backend**: Standard Playwright (Firefox/WebKit/Chromium) or Patchright (stealth Chromium with `Runtime.Enable` suppressed)
+- **Firefox as default browser** — no CDP detection, natural TLS fingerprint, full console/network capture
+- **Fingerprint randomization** via Apify's fingerprint-suite (consistent device profiles)
+- **~60 stealth Chromium flags** (canvas noise, WebRTC blocking, anti-automation detection removal)
+- **Human-like interaction** — Bezier curve mouse movement, randomized typing cadence
+- **Cross-origin iframe tools** — `playwright_iframe_click`, `playwright_iframe_fill`, `playwright_iframe_evaluate`
+- **Network capture** — `playwright_network_requests`, `playwright_get_network_request`
+- **DOM snapshot** — `playwright_snapshot` (structured DOM tree for LLM consumption)
+- **Performance tracing** — `playwright_start_trace`, `playwright_stop_trace` (cross-browser)
+- **Proxy support** — `--proxy`, `--proxy-username`, `--proxy-password`
+
+## Quick Start
+
+```bash
+# Install
+git clone https://github.com/a4501150/mcp-playwright.git
+cd mcp-playwright
+npm install
+npm run build
+
+# Install browsers
+npx playwright install firefox
+npx patchright install chromium  # optional, for stealth Chromium
+
+# Run (stdio mode for Claude Code)
+node dist/index.js
+
+# Or with options
+node dist/index.js --backend patchright --headless
+```
+
+### Claude Code MCP Config
+
+```json
+{
+  "mcpServers": {
+    "playwright-stealth": {
+      "command": "node",
+      "args": ["/path/to/mcp-playwright/dist/index.js"]
+    }
+  }
+}
+```
+
+## CLI Options
+
+```
+--backend <name>        "playwright" (default) or "patchright" (stealth Chromium)
+--browser <name>        "firefox" (default), "chromium", "webkit"
+--stealth / --no-stealth  Enable/disable stealth mode (default: enabled)
+--headless              Run browser in headless mode
+--humanize / --no-humanize  Human-like interaction (default: enabled with stealth)
+--proxy <url>           Proxy server URL
+--proxy-username <user> Proxy auth username
+--proxy-password <pass> Proxy auth password
+--port <number>         Run in HTTP/SSE mode instead of stdio
+```
+
+## Bot Detection Results (headed mode)
+
+| Backend | Browser | bot.sannysoft.com |
+|---------|---------|-------------------|
+| Patchright | Chromium | **57/57 PASS** |
+| Playwright | Firefox | 54/57 (3 Chrome-specific checks N/A) |
+| Playwright | Chromium (no stealth) | 48/57 |
 
 <a href="https://glama.ai/mcp/servers/yh4lgtwgbe"><img width="380" height="200" src="https://glama.ai/mcp/servers/yh4lgtwgbe/badge" alt="mcp-playwright MCP server" /></a>
 
