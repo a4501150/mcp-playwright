@@ -270,6 +270,38 @@ export async function handleToolCall(
       };
     }
 
+    // Special case for runtime mode switch
+    if (name === "playwright_set_browser_mode") {
+      const { mode, browser } = args;
+
+      // Update global config based on mode
+      if (mode === "headed") {
+        globalConfig.headless = false;
+        globalConfig.dockerMode = false;
+      } else if (mode === "headless") {
+        globalConfig.headless = true;
+        globalConfig.dockerMode = false;
+      } else if (mode === "headless-docker") {
+        globalConfig.headless = false;
+        globalConfig.dockerMode = true;
+      }
+
+      if (browser) {
+        globalConfig.browserType = browser;
+      }
+
+      // close() handles resource cleanup (disconnect WS, stop Docker container)
+      // resetBrowserState() destroys the singleton so next tool call creates a fresh one
+      await mgr.close();
+      resetBrowserState();
+
+      const browserStr = browser || globalConfig.browserType || "firefox";
+      return {
+        content: [{ type: "text", text: `Browser mode set to '${mode}' with ${browserStr}. Next browser action will launch with new settings.` }],
+        isError: false,
+      };
+    }
+
     // Check if we have a disconnected browser that needs cleanup
     const currentBrowser = mgr.getBrowser();
     if (currentBrowser && !currentBrowser.isConnected() && BROWSER_TOOLS.includes(name)) {

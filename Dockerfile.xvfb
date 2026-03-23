@@ -1,0 +1,9 @@
+ARG PLAYWRIGHT_VERSION=1.57.0
+FROM mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble
+WORKDIR /app
+ARG PLAYWRIGHT_VERSION=1.57.0
+RUN npm init -y && npm install playwright-core@${PLAYWRIGHT_VERSION}
+COPY docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
+EXPOSE 3000
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

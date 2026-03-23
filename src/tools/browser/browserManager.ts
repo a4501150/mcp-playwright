@@ -16,6 +16,7 @@ import { spawn } from 'child_process';
 import { STEALTH_CHROMIUM_ARGS, HARMFUL_ARGS, STEALTH_VIEWPORT, DEFAULT_VIEWPORT } from './constants.js';
 import { StealthManager, type StealthConfig } from './stealth.js';
 import { NetworkCapture } from './network.js';
+import { DockerManager } from './dockerManager.js';
 
 export interface BrowserManagerConfig {
   /** Backend: "playwright" (default) or "patchright" (stealth Chromium) */
@@ -36,6 +37,8 @@ export interface BrowserManagerConfig {
   fingerprint?: StealthConfig;
   /** Enable human-like interaction by default (default: true when stealth=true) */
   humanize: boolean;
+  /** Run browser in Docker with Xvfb (headless that passes all bot detection) */
+  dockerMode: boolean;
 }
 
 const DEFAULT_CONFIG: BrowserManagerConfig = {
@@ -44,6 +47,7 @@ const DEFAULT_CONFIG: BrowserManagerConfig = {
   stealth: true,
   headless: false,
   humanize: true,
+  dockerMode: false,
 };
 
 /** Singleton BrowserManager */
@@ -57,6 +61,7 @@ export class BrowserManager {
   private stealthManager: StealthManager;
   private networkCapture: NetworkCapture;
   private consoleRegisterFn?: (page: Page) => Promise<void>;
+  private dockerManager: DockerManager | undefined;
 
   constructor(config: Partial<BrowserManagerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -218,9 +223,82 @@ export class BrowserManager {
   }
 
   /**
-   * Launch browser with stealth config applied
+   * Launch browser with stealth config applied.
+   * In docker mode, starts a Docker container and connects via WebSocket.
    */
   private async launch(overrides?: {
+    viewport?: { width?: number; height?: number };
+    userAgent?: string;
+    headless?: boolean;
+    browserType?: 'chromium' | 'firefox' | 'webkit';
+  }): Promise<void> {
+    if (this.config.dockerMode) {
+      await this.launchDocker(overrides);
+    } else {
+      await this.launchLocal(overrides);
+    }
+  }
+
+  /**
+   * Launch browser via Docker container with Xvfb.
+   * Connects to the containerized browser server over WebSocket.
+   */
+  private async launchDocker(overrides?: {
+    viewport?: { width?: number; height?: number };
+    userAgent?: string;
+  }): Promise<void> {
+    this.dockerManager = new DockerManager();
+    const wsEndpoint = await this.dockerManager.start(this.config.browserType);
+
+    // Connect to the remote browser via WebSocket using standard playwright
+    // (patchright is irrelevant in docker mode — the browser runs headed inside Xvfb)
+    const playwright = await import('playwright');
+    const browserType = this.config.browserType === 'webkit'
+      ? playwright.webkit
+      : this.config.browserType === 'firefox'
+        ? playwright.firefox
+        : playwright.chromium;
+
+    this.browser = await browserType.connect(wsEndpoint);
+    this.browser.on('disconnected', () => this.reset());
+
+    // Create context with stealth fingerprint if enabled
+    const viewport = this.config.stealth
+      ? STEALTH_VIEWPORT
+      : {
+          width: overrides?.viewport?.width ?? DEFAULT_VIEWPORT.width,
+          height: overrides?.viewport?.height ?? DEFAULT_VIEWPORT.height,
+        };
+
+    const contextOptions: Record<string, any> = {
+      viewport,
+      deviceScaleFactor: 1,
+      ...(overrides?.userAgent && { userAgent: overrides.userAgent }),
+    };
+
+    if (this.config.stealth) {
+      const fpOptions = this.stealthManager.buildContextOptions(this.config.browserType);
+      Object.assign(contextOptions, fpOptions);
+    }
+
+    this.context = await this.browser.newContext(contextOptions);
+
+    if (this.config.stealth) {
+      await this.stealthManager.injectFingerprint(this.context);
+    }
+
+    this.page = await this.context.newPage();
+    this.networkCapture.attachToPage(this.page);
+
+    if (this.consoleRegisterFn) {
+      await this.consoleRegisterFn(this.page);
+    }
+  }
+
+  /**
+   * Launch browser locally (original path).
+   */
+  private async launchLocal(overrides?: {
     viewport?: { width?: number; height?: number };
     userAgent?: string;
     headless?: boolean;
@@ -322,6 +400,10 @@ export class BrowserManager {
   async close(): Promise<void> {
     if (this.browser?.isConnected()) {
       await this.browser.close().catch(() => {});
+    }
+    if (this.dockerManager) {
+      await this.dockerManager.stop();
+      this.dockerManager = undefined;
     }
     this.reset();
   }

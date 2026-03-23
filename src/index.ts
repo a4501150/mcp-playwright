@@ -9,6 +9,7 @@ import { MonitoringSystem } from "./monitoring/index.js";
 import { startHttpServer } from "./http-server.js";
 import { setGlobalBrowserConfig } from "./toolHandler.js";
 import type { BrowserManagerConfig } from "./tools/browser/browserManager.js";
+import { BrowserManager } from "./tools/browser/browserManager.js";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -68,6 +69,11 @@ function parseArgs() {
         options.browserConfig.headless = true;
         break;
 
+      case '--headless-docker':
+        options.browserConfig.dockerMode = true;
+        options.browserConfig.headless = false; // Browser is headed inside Docker/Xvfb
+        break;
+
       case '--humanize':
         options.browserConfig.humanize = next !== 'false';
         if (next === 'true' || next === 'false') i++;
@@ -112,6 +118,8 @@ OPTIONS:
   --browser <name>        Browser: "firefox" (default), "chromium", "webkit"
   --stealth / --no-stealth  Enable/disable stealth mode (default: enabled)
   --headless              Run browser in headless mode
+  --headless-docker       Run browser in Docker with Xvfb (headless that passes all bot detection)
+                          Requires Docker Desktop. Auto-builds image on first use.
   --humanize / --no-humanize  Enable/disable humanized interaction (default: enabled with stealth)
   --proxy <url>           Proxy server URL (e.g., http://proxy:8080 or socks5://proxy:1080)
   --proxy-username <user> Proxy authentication username
@@ -137,6 +145,9 @@ EXAMPLES:
 
   # With proxy
   playwright-mcp-server --proxy http://proxy.example.com:8080
+
+  # Headless via Docker (passes all bot detection, no window)
+  playwright-mcp-server --headless-docker
 
   # HTTP mode
   playwright-mcp-server --port 8931
@@ -214,6 +225,13 @@ async function runServer() {
   async function shutdown() {
     loggingMiddleware.logServerShutdown();
     logger.info('Shutdown signal received');
+    try {
+      // Close browser (and Docker container if in docker mode)
+      const browserManager = BrowserManager.getInstance();
+      await browserManager.close();
+    } catch (error) {
+      logger.error('Error closing browser', error instanceof Error ? error : new Error(String(error)));
+    }
     try {
       await monitoringSystem.stopMetricsCollection();
     } catch (error) {

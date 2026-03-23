@@ -10,6 +10,80 @@ The Playwright MCP Server can be containerized using Docker, providing:
 - Easy deployment and distribution
 - Simplified dependency management
 
+There are two Docker modes:
+1. **Full container mode** — Run the entire MCP server inside Docker (stdio via `docker run -i`)
+2. **Headless Docker mode** (`--headless-docker`) — Run only the browser inside Docker with Xvfb, while the MCP server stays on the host. Passes all bot detection like native headed mode, but no window appears on screen.
+
+## Headless Docker Mode (Recommended for Stealth)
+
+The `--headless-docker` flag runs a headed browser inside a Docker container with Xvfb (virtual display). The browser thinks it's running in headed mode (passing all bot detection), while no GUI window appears on the host.
+
+### How it works
+
+```
+Host (macOS/Linux)                    Docker Container (Linux)
+┌─────────────────────┐               ┌──────────────────────────┐
+│ MCP Server (stdio)  │               │ Xvfb :99 (virtual display)│
+│   BrowserManager    │  WebSocket    │ playwright-core           │
+│     .connect(ws)    │◄────────────►│   launchServer()           │
+│                     │  random port  │   headless: false          │
+└─────────────────────┘               └──────────────────────────┘
+```
+
+### Prerequisites
+
+- Docker Desktop installed and running
+- No manual image build required — image is built automatically on first use
+
+### Usage
+
+```bash
+# Default browser (Firefox) in Docker
+playwright-mcp-server --headless-docker
+
+# Chromium in Docker
+playwright-mcp-server --headless-docker --browser chromium
+
+# With stealth disabled
+playwright-mcp-server --headless-docker --no-stealth
+```
+
+### Claude Code / Claude Desktop configuration
+
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "node",
+      "args": ["/path/to/mcp-playwright/dist/index.js", "--headless-docker"]
+    }
+  }
+}
+```
+
+### Performance
+
+On Apple Silicon Macs (M1/M2/M3/M4), the Docker image runs under Rosetta 2 emulation (amd64). Performance is comparable to native headed mode:
+
+| Operation | Local Headed | Docker Xvfb |
+|-----------|-------------|-------------|
+| Startup to ready | ~3s | ~1s |
+| Page navigation | ~180ms | ~120ms |
+| JS evaluate | ~0.5ms | ~1.2ms |
+| Screenshot | ~250ms | ~65ms |
+
+### Notes
+
+- The Docker image (`mcp-pw-xvfb:<version>`) is built once and cached. Version is pinned to match the host's `playwright` dependency.
+- Each run uses a random available port — no port conflicts between concurrent sessions.
+- Containers are automatically cleaned up on shutdown (SIGINT/SIGTERM).
+- `--backend patchright` is ignored in Docker mode — the browser runs headed inside Xvfb, so CDP detection is not an issue.
+- You can switch to/from headless-docker mode at runtime using `playwright_set_browser_mode({ mode: "headless-docker" })` without restarting the MCP server.
+
+## Full Container Mode
+
+The following sections describe running the entire MCP server inside Docker.
+
 ## Prerequisites
 
 - Docker installed on your system ([Install Docker](https://docs.docker.com/get-docker/))

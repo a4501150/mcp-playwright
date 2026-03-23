@@ -61,8 +61,23 @@ node dist/index.js --backend patchright --headless
 --proxy <url>           Proxy server URL
 --proxy-username <user> Proxy auth username
 --proxy-password <pass> Proxy auth password
+--headless-docker       Run browser inside Docker with Xvfb (stealth, no window)
 --port <number>         Run in HTTP/SSE mode instead of stdio
 ```
+
+### Runtime Mode Switching
+
+You can also switch browser modes at runtime without restarting the MCP server, using the `playwright_set_browser_mode` tool:
+
+```javascript
+// Switch to headless-docker for stealth scraping
+await playwright_set_browser_mode({ mode: "headless-docker" });
+
+// Switch back to headed for debugging
+await playwright_set_browser_mode({ mode: "headed", browser: "chromium" });
+```
+
+This closes any running browser and configures the next launch. The next browser tool call (e.g. `playwright_navigate`) will use the new settings.
 
 ## Bot Detection Results (headed mode)
 

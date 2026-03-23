@@ -271,6 +271,26 @@ export function createToolDefinitions() {
       },
     },
     {
+      name: "playwright_set_browser_mode",
+      description: "Switch the browser mode at runtime. Closes the current browser (if running) and configures the next launch. Modes: 'headed' (visible window, default), 'headless' (invisible, fast, but detectable by bot protection), 'headless-docker' (invisible via Docker+Xvfb, passes all bot detection, requires Docker). Optionally change the browser engine.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          mode: {
+            type: "string",
+            enum: ["headed", "headless", "headless-docker"],
+            description: "Browser mode: 'headed' shows a window, 'headless' is invisible but detectable, 'headless-docker' is invisible and undetectable (requires Docker)"
+          },
+          browser: {
+            type: "string",
+            enum: ["chromium", "firefox", "webkit"],
+            description: "Browser engine to use (optional, keeps current if not specified)"
+          }
+        },
+        required: ["mode"]
+      }
+    },
+    {
       name: "playwright_get",
       description: "Perform an HTTP GET request",
       inputSchema: {
@@ -590,6 +610,7 @@ export const BROWSER_TOOLS = [
   "playwright_evaluate",
   "playwright_resize",
   "playwright_close",
+  "playwright_set_browser_mode",
   "playwright_expect_response",
   "playwright_assert_response",
   "playwright_custom_user_agent",
