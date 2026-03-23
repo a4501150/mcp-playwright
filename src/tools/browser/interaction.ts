@@ -1,16 +1,33 @@
 import { BrowserToolBase } from './base.js';
 import { ToolContext, ToolResponse, createSuccessResponse, createErrorResponse } from '../common/types.js';
 import { setGlobalPage } from '../../toolHandler.js';
+import { createCursor } from 'ghost-cursor-playwright';
 /**
  * Tool for clicking elements on the page
  */
 export class ClickTool extends BrowserToolBase {
   /**
    * Execute the click tool
+   * @param args.selector CSS selector for the element to click
+   * @param args.humanize If true, use Bezier curve mouse movement (default: false)
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-      await page.click(args.selector);      
+      if (args.humanize) {
+        try {
+          const cursor = await createCursor(page);
+          await cursor.actions.click({
+            target: args.selector,
+            waitBeforeClick: [50, 200],
+          });
+          return createSuccessResponse(`Clicked element (humanized): ${args.selector}`);
+        } catch {
+          // Fall back to normal click if ghost-cursor fails
+          await page.click(args.selector);
+          return createSuccessResponse(`Clicked element (fallback): ${args.selector}`);
+        }
+      }
+      await page.click(args.selector);
       return createSuccessResponse(`Clicked element: ${args.selector}`);
     });
   }
@@ -91,10 +108,34 @@ export class IframeFillTool extends BrowserToolBase {
 export class FillTool extends BrowserToolBase {
   /**
    * Execute the fill tool
+   * @param args.selector CSS selector for input field
+   * @param args.value Value to fill
+   * @param args.humanize If true, type with randomized delays (default: false)
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
       await page.waitForSelector(args.selector);
+
+      if (args.humanize) {
+        // Clear existing value first
+        await page.click(args.selector, { clickCount: 3 });
+        await page.keyboard.press('Backspace');
+
+        // Type with humanized delays
+        for (const char of args.value) {
+          const delay = char === ' '
+            ? Math.floor(Math.random() * 100) + 80   // longer pause after space
+            : Math.floor(Math.random() * 100) + 30;  // 30-130ms per char
+          await page.keyboard.type(char, { delay });
+
+          // Occasional hesitation (3% chance)
+          if (Math.random() < 0.03) {
+            await page.waitForTimeout(Math.floor(Math.random() * 300) + 100);
+          }
+        }
+        return createSuccessResponse(`Filled ${args.selector} with humanized typing: ${args.value}`);
+      }
+
       await page.fill(args.selector, args.value);
       return createSuccessResponse(`Filled ${args.selector} with: ${args.value}`);
     });
@@ -123,10 +164,24 @@ export class SelectTool extends BrowserToolBase {
 export class HoverTool extends BrowserToolBase {
   /**
    * Execute the hover tool
+   * @param args.selector CSS selector for element to hover
+   * @param args.humanize If true, use Bezier curve mouse movement (default: false)
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
       await page.waitForSelector(args.selector);
+
+      if (args.humanize) {
+        try {
+          const cursor = await createCursor(page);
+          await cursor.actions.move(args.selector);
+          return createSuccessResponse(`Hovered (humanized) ${args.selector}`);
+        } catch {
+          await page.hover(args.selector);
+          return createSuccessResponse(`Hovered (fallback) ${args.selector}`);
+        }
+      }
+
       await page.hover(args.selector);
       return createSuccessResponse(`Hovered ${args.selector}`);
     });
@@ -233,6 +288,63 @@ export class PressKeyTool extends BrowserToolBase {
   }
 } 
 
+
+/**
+ * Tool for evaluating JavaScript inside an iframe
+ */
+export class IframeEvaluateTool extends BrowserToolBase {
+  /**
+   * Execute JavaScript inside a specific iframe.
+   * Supports CSS selector (iframeSelector) or URL pattern (urlPattern) to identify the iframe.
+   */
+  async execute(args: any, context: ToolContext): Promise<ToolResponse> {
+    return this.safeExecute(context, async (page) => {
+      try {
+        let result: any;
+
+        if (args.urlPattern) {
+          // Find frame by URL pattern
+          const frame = page.frames().find(f => f.url().includes(args.urlPattern));
+          if (!frame) {
+            return createErrorResponse(`No iframe found matching URL pattern: ${args.urlPattern}`);
+          }
+          result = await frame.evaluate(args.script);
+        } else if (args.iframeSelector) {
+          // Use frameLocator with CSS selector
+          const frameLocator = page.frameLocator(args.iframeSelector);
+          // frameLocator doesn't have evaluate directly — find the frame via element handle
+          const frameElement = await page.$(args.iframeSelector);
+          if (!frameElement) {
+            return createErrorResponse(`Iframe not found: ${args.iframeSelector}`);
+          }
+          const frame = await frameElement.contentFrame();
+          if (!frame) {
+            return createErrorResponse(`Could not access iframe content: ${args.iframeSelector}`);
+          }
+          result = await frame.evaluate(args.script);
+        } else {
+          return createErrorResponse('Either iframeSelector or urlPattern is required');
+        }
+
+        let resultStr: string;
+        try {
+          resultStr = JSON.stringify(result, null, 2);
+        } catch {
+          resultStr = String(result);
+        }
+
+        return createSuccessResponse([
+          `Executed in iframe:`,
+          `${args.script}`,
+          `Result:`,
+          `${resultStr}`,
+        ]);
+      } catch (error) {
+        return createErrorResponse(`Iframe evaluate failed: ${(error as Error).message}`);
+      }
+    });
+  }
+}
 
 /**
  * Tool for switching browser tabs

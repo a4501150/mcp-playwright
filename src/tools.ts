@@ -112,11 +112,12 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_click",
-      description: "Click an element on the page",
+      description: "Click an element on the page. Set humanize=true for Bezier curve mouse movement.",
       inputSchema: {
         type: "object",
         properties: {
           selector: { type: "string", description: "CSS selector for the element to click" },
+          humanize: { type: "boolean", description: "Use human-like Bezier curve mouse movement (default: false)" },
         },
         required: ["selector"],
       },
@@ -148,12 +149,13 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_fill",
-      description: "fill out an input field",
+      description: "Fill out an input field. Set humanize=true for realistic typing with variable delays.",
       inputSchema: {
         type: "object",
         properties: {
           selector: { type: "string", description: "CSS selector for input field" },
           value: { type: "string", description: "Value to fill" },
+          humanize: { type: "boolean", description: "Use human-like typing with variable delays (default: false)" },
         },
         required: ["selector", "value"],
       },
@@ -172,11 +174,12 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_hover",
-      description: "Hover an element on the page",
+      description: "Hover an element on the page. Set humanize=true for Bezier curve mouse movement.",
       inputSchema: {
         type: "object",
         properties: {
           selector: { type: "string", description: "CSS selector for element to hover" },
+          humanize: { type: "boolean", description: "Use human-like Bezier curve mouse movement (default: false)" },
         },
         required: ["selector"],
       },
@@ -494,6 +497,81 @@ export function createToolDefinitions() {
         required: ["selector"],
       },
     },
+    // --- New tools ---
+    {
+      name: "playwright_iframe_evaluate",
+      description: "Execute JavaScript inside an iframe. Identify the iframe by CSS selector (iframeSelector) or URL pattern (urlPattern).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          iframeSelector: { type: "string", description: "CSS selector for the iframe element" },
+          urlPattern: { type: "string", description: "URL substring to match the iframe (alternative to iframeSelector)" },
+          script: { type: "string", description: "JavaScript code to execute inside the iframe" },
+        },
+        required: ["script"],
+      },
+    },
+    {
+      name: "playwright_snapshot",
+      description: "Take an accessibility tree snapshot of the current page. Returns a text representation of the a11y tree including roles, names, values, and states. Includes iframe subtrees by default.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          interestingOnly: { type: "boolean", description: "Only include nodes with interesting attributes (default: true)" },
+          includeIframes: { type: "boolean", description: "Include iframe subtrees (default: true)" },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "playwright_network_requests",
+      description: "List captured network requests with optional filtering. Requests are captured automatically after browser launch.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          urlPattern: { type: "string", description: "Regex pattern to filter by URL" },
+          method: { type: "string", description: "HTTP method to filter (GET, POST, etc.)" },
+          statusMin: { type: "number", description: "Minimum status code to include" },
+          statusMax: { type: "number", description: "Maximum status code to include" },
+          limit: { type: "number", description: "Maximum number of requests to return (default: 50)" },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "playwright_get_network_request",
+      description: "Get full details of a specific captured network request by its ID, including headers, body, and response.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "number", description: "Request ID from playwright_network_requests" },
+        },
+        required: ["id"],
+      },
+    },
+    {
+      name: "playwright_start_trace",
+      description: "Start recording a Playwright trace. Records screenshots, snapshots, and HAR. Works on all browsers.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          screenshots: { type: "boolean", description: "Include screenshots in trace (default: true)" },
+          snapshots: { type: "boolean", description: "Include snapshots in trace (default: true)" },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "playwright_stop_trace",
+      description: "Stop recording and save the Playwright trace to a file. View with: npx playwright show-trace <path>",
+      inputSchema: {
+        type: "object",
+        properties: {
+          outputPath: { type: "string", description: "Path to save the trace file (default: temp directory)" },
+        },
+        required: [],
+      },
+    },
   ] as const satisfies Tool[];
 }
 
@@ -504,6 +582,7 @@ export const BROWSER_TOOLS = [
   "playwright_click",
   "playwright_iframe_click",
   "playwright_iframe_fill",
+  "playwright_iframe_evaluate",
   "playwright_fill",
   "playwright_select",
   "playwright_hover",
@@ -521,7 +600,12 @@ export const BROWSER_TOOLS = [
   "playwright_drag",
   "playwright_press_key",
   "playwright_save_as_pdf",
-  "playwright_click_and_switch_tab"
+  "playwright_click_and_switch_tab",
+  "playwright_snapshot",
+  "playwright_network_requests",
+  "playwright_get_network_request",
+  "playwright_start_trace",
+  "playwright_stop_trace",
 ];
 
 // API Request tools for conditional launch
