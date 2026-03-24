@@ -154,7 +154,7 @@ OPTIONS:
   --proxy <url>           Proxy server URL (e.g., http://proxy:8080 or socks5://proxy:1080)
   --proxy-username <user> Proxy authentication username
   --proxy-password <pass> Proxy authentication password
-  --viewport <WxH>        Fix viewport size (e.g., 1920x1080). Default: dynamic (follows window)
+  --viewport <WxH>        Fix viewport to a specific size (e.g., 1920x1080). Omit for auto-sizing
   --network-buffer-size <n> Max network requests to capture (default: 0 = unlimited)
   --help, -h              Show this help message
 
