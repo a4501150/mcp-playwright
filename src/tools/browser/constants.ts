@@ -78,8 +78,8 @@ export const STEALTH_VIEWPORT = {
   height: 1080,
 };
 
-/** Default non-stealth viewport (matches upstream) */
+/** Default non-stealth viewport (common laptop resolution) */
 export const DEFAULT_VIEWPORT = {
-  width: 1280,
-  height: 720,
+  width: 1440,
+  height: 900,
 };

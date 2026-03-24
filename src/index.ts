@@ -104,6 +104,36 @@ function parseArgs() {
         }
         break;
 
+      case '--viewport':
+        if (next) {
+          const parts = next.split('x');
+          if (parts.length === 2) {
+            const w = parseInt(parts[0], 10);
+            const h = parseInt(parts[1], 10);
+            if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+              options.browserConfig.viewport = { width: w, height: h };
+              i++;
+              break;
+            }
+          }
+          console.error('Error: --viewport must be in WxH format (e.g., 1920x1080)');
+          process.exit(1);
+        }
+        break;
+
+      case '--network-buffer-size':
+        if (next) {
+          const size = parseInt(next, 10);
+          if (!isNaN(size) && size >= 0) {
+            options.browserConfig.networkBufferSize = size;
+            i++;
+          } else {
+            console.error('Error: --network-buffer-size must be a non-negative integer (0 = unlimited)');
+            process.exit(1);
+          }
+        }
+        break;
+
       case '--help':
       case '-h':
         console.error(`
@@ -114,7 +144,7 @@ USAGE:
 
 OPTIONS:
   --port <number>         Run in HTTP mode on the specified port
-  --backend <name>        Backend: "camoufox" (default, anti-detect Firefox), "playwright", or "patchright" (stealth Chromium)
+  --backend <name>        Backend: "playwright" (default, Firefox with JS stealth), "camoufox" (anti-detect Firefox), or "patchright" (stealth Chromium)
   --browser <name>        Browser: "firefox" (default), "chromium", "webkit"
   --stealth / --no-stealth  Enable/disable stealth mode (default: enabled)
   --headless              Run browser in headless mode
@@ -124,10 +154,12 @@ OPTIONS:
   --proxy <url>           Proxy server URL (e.g., http://proxy:8080 or socks5://proxy:1080)
   --proxy-username <user> Proxy authentication username
   --proxy-password <pass> Proxy authentication password
+  --viewport <WxH>        Default viewport size (e.g., 1920x1080). Default: 1440x900
+  --network-buffer-size <n> Max network requests to capture (default: 0 = unlimited)
   --help, -h              Show this help message
 
 STEALTH:
-  With --backend camoufox (default), an anti-detect Firefox fork is used with
+  With --backend camoufox, an anti-detect Firefox fork is used with
   C++-level fingerprint spoofing. No additional JS fingerprint injection is applied.
   The Camoufox binary is auto-fetched on first use.
 
@@ -138,11 +170,11 @@ STEALTH:
   is used, which is not subject to CDP-level detection.
 
 EXAMPLES:
-  # Default: Camoufox anti-detect Firefox (auto-fetches binary on first use)
+  # Default: Playwright Firefox with JS-level stealth
   playwright-mcp-server
 
-  # Standard Playwright Firefox (no anti-detect)
-  playwright-mcp-server --backend playwright
+  # Anti-detect Firefox via Camoufox (auto-fetches binary on first use)
+  playwright-mcp-server --backend camoufox
 
   # Stealth Chromium via Patchright
   playwright-mcp-server --backend patchright
@@ -176,7 +208,7 @@ async function runServer() {
   if (options.port) {
     process.stdout.write(`\n⏳ Initializing Playwright MCP Server on port ${options.port}...\n`);
     const config = options.browserConfig;
-    const backendStr = config.backend || 'camoufox';
+    const backendStr = config.backend || 'playwright';
     const browserStr = config.browserType || 'firefox';
     const stealthStr = config.stealth !== false ? 'enabled' : 'disabled';
     process.stdout.write(`   Backend: ${backendStr}, Browser: ${browserStr}, Stealth: ${stealthStr}\n`);
@@ -265,7 +297,7 @@ async function runServer() {
   logger.info('MCP Server connected and ready', {
     transport: 'stdio',
     toolCount: TOOLS.length,
-    backend: config.backend || 'camoufox',
+    backend: config.backend || 'playwright',
     browser: config.browserType || 'firefox',
     stealth: config.stealth !== false,
   });

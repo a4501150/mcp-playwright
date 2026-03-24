@@ -2,8 +2,8 @@
  * BrowserManager: Centralized browser lifecycle management with configurable backend.
  *
  * Supports three backends:
- * - "camoufox" (default): Anti-detect Firefox fork with C++-level fingerprint spoofing
- * - "playwright": Standard Playwright for Firefox/WebKit/Chromium
+ * - "playwright" (default): Standard Playwright for Firefox/WebKit/Chromium with JS-level stealth
+ * - "camoufox": Anti-detect Firefox fork with C++-level fingerprint spoofing
  * - "patchright": Patched Playwright fork for stealth Chromium (suppresses Runtime.Enable)
  *
  * Stealth layers are applied based on config:
@@ -21,7 +21,7 @@ import { NetworkCapture } from './network.js';
 import { DockerManager } from './dockerManager.js';
 
 export interface BrowserManagerConfig {
-  /** Backend: "camoufox" (default, anti-detect Firefox), "playwright", or "patchright" (stealth Chromium) */
+  /** Backend: "playwright" (default), "camoufox" (anti-detect Firefox), or "patchright" (stealth Chromium) */
   backend: 'playwright' | 'patchright' | 'camoufox';
   /** Browser type: "firefox" (default), "chromium", "webkit" */
   browserType: 'firefox' | 'chromium' | 'webkit';
@@ -41,10 +41,14 @@ export interface BrowserManagerConfig {
   humanize: boolean;
   /** Run browser in Docker with Xvfb (headless that passes all bot detection) */
   dockerMode: boolean;
+  /** Custom default viewport dimensions */
+  viewport?: { width: number; height: number };
+  /** Network capture buffer size (0 = unlimited, default: 500) */
+  networkBufferSize?: number;
 }
 
 const DEFAULT_CONFIG: BrowserManagerConfig = {
-  backend: 'camoufox',
+  backend: 'playwright',
   browserType: 'firefox',
   stealth: true,
   headless: false,
@@ -86,7 +90,11 @@ export class BrowserManager {
     }
 
     this.stealthManager = new StealthManager(this.config.fingerprint);
-    this.networkCapture = new NetworkCapture();
+    this.networkCapture = new NetworkCapture(
+      this.config.networkBufferSize !== undefined
+        ? { maxRequests: this.config.networkBufferSize }
+        : undefined
+    );
   }
 
   static getInstance(config?: Partial<BrowserManagerConfig>): BrowserManager {
@@ -338,8 +346,8 @@ export class BrowserManager {
     const viewport = applyJsStealth
       ? STEALTH_VIEWPORT
       : {
-          width: overrides?.viewport?.width ?? DEFAULT_VIEWPORT.width,
-          height: overrides?.viewport?.height ?? DEFAULT_VIEWPORT.height,
+          width: overrides?.viewport?.width ?? this.config.viewport?.width ?? DEFAULT_VIEWPORT.width,
+          height: overrides?.viewport?.height ?? this.config.viewport?.height ?? DEFAULT_VIEWPORT.height,
         };
 
     const contextOptions: Record<string, any> = {

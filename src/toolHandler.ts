@@ -47,7 +47,7 @@ import { DragTool, PressKeyTool } from './tools/browser/interaction.js';
 import { SaveAsPdfTool } from './tools/browser/output.js';
 import { ClickAndSwitchTabTool } from './tools/browser/interaction.js';
 import { BrowserManager, type BrowserManagerConfig } from './tools/browser/browserManager.js';
-import { NetworkRequestsTool, GetNetworkRequestTool } from './tools/browser/network.js';
+import { NetworkRequestsTool, GetNetworkRequestTool, NetworkConfigTool, DumpNetworkTool } from './tools/browser/network.js';
 import { SnapshotTool } from './tools/browser/snapshot.js';
 import { StartTracingTool, StopTracingTool } from './tools/browser/performance.js';
 
@@ -130,6 +130,8 @@ let clickAndSwitchTabTool: ClickAndSwitchTabTool;
 // New tools
 let networkRequestsTool: NetworkRequestsTool;
 let getNetworkRequestTool: GetNetworkRequestTool;
+let networkConfigTool: NetworkConfigTool;
+let dumpNetworkTool: DumpNetworkTool;
 let snapshotTool: SnapshotTool;
 let startTracingTool: StartTracingTool;
 let stopTracingTool: StopTracingTool;
@@ -224,6 +226,8 @@ function initializeTools(server: any) {
   // New tools
   if (!networkRequestsTool) networkRequestsTool = new NetworkRequestsTool(server, networkCapture);
   if (!getNetworkRequestTool) getNetworkRequestTool = new GetNetworkRequestTool(server, networkCapture);
+  if (!networkConfigTool) networkConfigTool = new NetworkConfigTool(server, networkCapture);
+  if (!dumpNetworkTool) dumpNetworkTool = new DumpNetworkTool(server, networkCapture);
   if (!snapshotTool) snapshotTool = new SnapshotTool(server);
   if (!startTracingTool) startTracingTool = new StartTracingTool(server);
   if (!stopTracingTool) stopTracingTool = new StopTracingTool(server);
@@ -305,7 +309,7 @@ export async function handleToolCall(
       await mgr.close();
       resetBrowserState();
 
-      const backendStr = backend || globalConfig.backend || "camoufox";
+      const backendStr = backend || globalConfig.backend || "playwright";
       const browserStr = browser || globalConfig.browserType || "firefox";
       return {
         content: [{ type: "text", text: `Browser mode set to '${mode}' with ${backendStr}/${browserStr}. Next browser action will launch with new settings.` }],
@@ -334,6 +338,14 @@ export async function handleToolCall(
         content: [{ type: "text", text: `Switched to page [${args.index}]: ${page.url()}` }],
         isError: false,
       };
+    }
+
+    // Network config tools (no browser launch needed)
+    if (name === "playwright_network_config") {
+      return await networkConfigTool.execute(args, { server });
+    }
+    if (name === "playwright_dump_network") {
+      return await dumpNetworkTool.execute(args, { server });
     }
 
     // Check if we have a disconnected browser that needs cleanup

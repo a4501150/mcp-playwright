@@ -83,8 +83,8 @@ export function createToolDefinitions() {
         properties: {
           url: { type: "string", description: "URL to navigate to the website specified" },
           browserType: { type: "string", description: "Browser type to use (chromium, firefox, webkit). Defaults to firefox", enum: ["chromium", "firefox", "webkit"] },
-          width: { type: "number", description: "Viewport width in pixels (default: 1280)" },
-          height: { type: "number", description: "Viewport height in pixels (default: 720)" },
+          width: { type: "number", description: "Viewport width in pixels (default: 1440)" },
+          height: { type: "number", description: "Viewport height in pixels (default: 900)" },
           timeout: { type: "number", description: "Navigation timeout in milliseconds" },
           waitUntil: { type: "string", description: "Navigation wait condition" },
           headless: { type: "boolean", description: "Run browser in headless mode (default: false)" },
@@ -290,7 +290,7 @@ export function createToolDefinitions() {
           backend: {
             type: "string",
             enum: ["camoufox", "playwright", "patchright"],
-            description: "Browser backend: 'camoufox' (anti-detect Firefox, default), 'playwright' (standard), 'patchright' (stealth Chromium). Changing backend closes the current browser."
+            description: "Browser backend: 'playwright' (default, standard Firefox with JS stealth), 'camoufox' (anti-detect Firefox), 'patchright' (stealth Chromium). Changing backend closes the current browser."
           }
         },
         required: ["mode"]
@@ -618,8 +618,64 @@ export function createToolDefinitions() {
         required: [],
       },
     },
+    {
+      name: "playwright_network_config",
+      description: "Configure network capture filters and buffer size at runtime. Set URL include/exclude patterns, resource type filters, and buffer size. Filters apply to NEW requests only (already-captured requests are not removed). Can be called before browser launch to pre-configure.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          includePatterns: {
+            type: "array",
+            items: { type: "string" },
+            description: "Regex patterns — only capture URLs matching at least one pattern. Pass empty array to clear. Omit to keep current."
+          },
+          excludePatterns: {
+            type: "array",
+            items: { type: "string" },
+            description: "Regex patterns — drop URLs matching any pattern (e.g., ['analytics', 'facebook\\.com', '\\.jpg$']). Pass empty array to clear."
+          },
+          resourceTypes: {
+            type: "array",
+            items: { type: "string" },
+            description: "Only capture these resource types (e.g., 'fetch', 'xhr', 'document', 'script', 'stylesheet', 'image', 'font', 'websocket'). Pass empty array to clear. Omit to keep current."
+          },
+          maxRequests: {
+            type: "number",
+            description: "Maximum requests to keep in buffer. 0 = unlimited (default). Set to e.g. 500 to cap memory usage."
+          },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "playwright_dump_network",
+      description: "Export all captured network requests to a JSON file on disk. Includes request/response headers and bodies. Avoids context window bloat from fetching requests one-by-one.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          outputPath: { type: "string", description: "File path to write the JSON export (absolute path recommended)" },
+          filter: {
+            type: "object",
+            description: "Optional filter to apply before export (same as playwright_network_requests filters)",
+            properties: {
+              urlPattern: { type: "string", description: "Regex pattern to filter by URL" },
+              method: { type: "string", description: "HTTP method to filter (GET, POST, etc.)" },
+              statusMin: { type: "number", description: "Minimum status code to include" },
+              statusMax: { type: "number", description: "Maximum status code to include" },
+            },
+          },
+        },
+        required: ["outputPath"],
+      },
+    },
   ] as const satisfies Tool[];
 }
+
+// Network config tools (don't require browser launch)
+export const NETWORK_TOOLS = [
+  "playwright_network_config",
+  "playwright_dump_network",
+];
 
 // Browser-requiring tools for conditional browser launch
 export const BROWSER_TOOLS = [
@@ -678,5 +734,6 @@ export const CODEGEN_TOOLS = [
 export const tools = [
   ...BROWSER_TOOLS,
   ...API_TOOLS,
-  ...CODEGEN_TOOLS
+  ...CODEGEN_TOOLS,
+  ...NETWORK_TOOLS,
 ];
