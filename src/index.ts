@@ -37,11 +37,11 @@ function parseArgs() {
         break;
 
       case '--backend':
-        if (next === 'patchright' || next === 'playwright') {
+        if (next === 'patchright' || next === 'playwright' || next === 'camoufox') {
           options.browserConfig.backend = next;
           i++;
         } else {
-          console.error('Error: --backend must be "patchright" or "playwright"');
+          console.error('Error: --backend must be "camoufox", "playwright", or "patchright"');
           process.exit(1);
         }
         break;
@@ -114,7 +114,7 @@ USAGE:
 
 OPTIONS:
   --port <number>         Run in HTTP mode on the specified port
-  --backend <name>        Backend: "playwright" (default) or "patchright" (stealth Chromium)
+  --backend <name>        Backend: "camoufox" (default, anti-detect Firefox), "playwright", or "patchright" (stealth Chromium)
   --browser <name>        Browser: "firefox" (default), "chromium", "webkit"
   --stealth / --no-stealth  Enable/disable stealth mode (default: enabled)
   --headless              Run browser in headless mode
@@ -127,27 +127,34 @@ OPTIONS:
   --help, -h              Show this help message
 
 STEALTH:
+  With --backend camoufox (default), an anti-detect Firefox fork is used with
+  C++-level fingerprint spoofing. No additional JS fingerprint injection is applied.
+  The Camoufox binary is auto-fetched on first use.
+
   With --backend patchright, Chromium is used with Runtime.Enable suppressed,
   making it harder for websites to detect automation.
 
-  With --browser firefox (default), Firefox's native debugging protocol is used,
-  which is not subject to CDP-level detection. Full console/network capture works.
+  With --backend playwright --browser firefox, Firefox's native debugging protocol
+  is used, which is not subject to CDP-level detection.
 
 EXAMPLES:
-  # Default: Firefox with stealth + fingerprint randomization
+  # Default: Camoufox anti-detect Firefox (auto-fetches binary on first use)
   playwright-mcp-server
+
+  # Standard Playwright Firefox (no anti-detect)
+  playwright-mcp-server --backend playwright
 
   # Stealth Chromium via Patchright
   playwright-mcp-server --backend patchright
 
   # No stealth (for testing your own sites)
-  playwright-mcp-server --no-stealth --browser chromium
+  playwright-mcp-server --no-stealth --backend playwright --browser chromium
 
   # With proxy
   playwright-mcp-server --proxy http://proxy.example.com:8080
 
   # Headless via Docker (passes all bot detection, no window)
-  playwright-mcp-server --headless-docker
+  playwright-mcp-server --headless-docker --backend playwright
 
   # HTTP mode
   playwright-mcp-server --port 8931
@@ -169,7 +176,7 @@ async function runServer() {
   if (options.port) {
     process.stdout.write(`\n⏳ Initializing Playwright MCP Server on port ${options.port}...\n`);
     const config = options.browserConfig;
-    const backendStr = config.backend || 'playwright';
+    const backendStr = config.backend || 'camoufox';
     const browserStr = config.browserType || 'firefox';
     const stealthStr = config.stealth !== false ? 'enabled' : 'disabled';
     process.stdout.write(`   Backend: ${backendStr}, Browser: ${browserStr}, Stealth: ${stealthStr}\n`);
@@ -258,7 +265,7 @@ async function runServer() {
   logger.info('MCP Server connected and ready', {
     transport: 'stdio',
     toolCount: TOOLS.length,
-    backend: config.backend || 'playwright',
+    backend: config.backend || 'camoufox',
     browser: config.browserType || 'firefox',
     stealth: config.stealth !== false,
   });

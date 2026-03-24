@@ -272,7 +272,7 @@ export async function handleToolCall(
 
     // Special case for runtime mode switch
     if (name === "playwright_set_browser_mode") {
-      const { mode, browser } = args;
+      const { mode, browser, backend } = args;
 
       // Update global config based on mode
       if (mode === "headed") {
@@ -286,6 +286,16 @@ export async function handleToolCall(
         globalConfig.dockerMode = true;
       }
 
+      if (backend) {
+        globalConfig.backend = backend;
+        // Force correct browser type for backend
+        if (backend === 'patchright') {
+          globalConfig.browserType = 'chromium';
+        } else if (backend === 'camoufox') {
+          globalConfig.browserType = 'firefox';
+        }
+      }
+
       if (browser) {
         globalConfig.browserType = browser;
       }
@@ -295,9 +305,10 @@ export async function handleToolCall(
       await mgr.close();
       resetBrowserState();
 
+      const backendStr = backend || globalConfig.backend || "camoufox";
       const browserStr = browser || globalConfig.browserType || "firefox";
       return {
-        content: [{ type: "text", text: `Browser mode set to '${mode}' with ${browserStr}. Next browser action will launch with new settings.` }],
+        content: [{ type: "text", text: `Browser mode set to '${mode}' with ${backendStr}/${browserStr}. Next browser action will launch with new settings.` }],
         isError: false,
       };
     }
