@@ -37,11 +37,11 @@ function parseArgs() {
         break;
 
       case '--backend':
-        if (next === 'patchright' || next === 'playwright' || next === 'camoufox') {
+        if (next === 'patchright' || next === 'playwright') {
           options.browserConfig.backend = next;
           i++;
         } else {
-          console.error('Error: --backend must be "camoufox", "playwright", or "patchright"');
+          console.error('Error: --backend must be "playwright" or "patchright"');
           process.exit(1);
         }
         break;
@@ -144,7 +144,7 @@ USAGE:
 
 OPTIONS:
   --port <number>         Run in HTTP mode on the specified port
-  --backend <name>        Backend: "playwright" (default, Firefox with JS stealth), "camoufox" (anti-detect Firefox), or "patchright" (stealth Chromium)
+  --backend <name>        Backend: "playwright" (default, Firefox with JS stealth) or "patchright" (stealth Chromium)
   --browser <name>        Browser: "firefox" (default), "chromium", "webkit"
   --stealth / --no-stealth  Enable/disable stealth mode (default: enabled)
   --headless              Run browser in headless mode
@@ -159,10 +159,6 @@ OPTIONS:
   --help, -h              Show this help message
 
 STEALTH:
-  With --backend camoufox, an anti-detect Firefox fork is used with
-  C++-level fingerprint spoofing. No additional JS fingerprint injection is applied.
-  The Camoufox binary is auto-fetched on first use.
-
   With --backend patchright, Chromium is used with Runtime.Enable suppressed,
   making it harder for websites to detect automation.
 
@@ -172,9 +168,6 @@ STEALTH:
 EXAMPLES:
   # Default: Playwright Firefox with JS-level stealth
   playwright-mcp-server
-
-  # Anti-detect Firefox via Camoufox (auto-fetches binary on first use)
-  playwright-mcp-server --backend camoufox
 
   # Stealth Chromium via Patchright
   playwright-mcp-server --backend patchright

@@ -1,15 +1,13 @@
 /**
  * BrowserManager: Centralized browser lifecycle management with configurable backend.
  *
- * Supports three backends:
+ * Supports two backends:
  * - "playwright" (default): Standard Playwright for Firefox/WebKit/Chromium with JS-level stealth
- * - "camoufox": Anti-detect Firefox fork with C++-level fingerprint spoofing
  * - "patchright": Patched Playwright fork for stealth Chromium (suppresses Runtime.Enable)
  *
  * Stealth layers are applied based on config:
- * - Camoufox: C++-level fingerprint spoofing (no JS injection needed)
  * - Chromium flags (~60 anti-detect args)
- * - Fingerprint generation & injection (Apify fingerprint-suite, disabled for camoufox)
+ * - Fingerprint generation & injection (Apify fingerprint-suite)
  * - Human-like interaction helpers (exposed for tool use)
  */
 
@@ -21,8 +19,8 @@ import { NetworkCapture } from './network.js';
 import { DockerManager } from './dockerManager.js';
 
 export interface BrowserManagerConfig {
-  /** Backend: "playwright" (default), "camoufox" (anti-detect Firefox), or "patchright" (stealth Chromium) */
-  backend: 'playwright' | 'patchright' | 'camoufox';
+  /** Backend: "playwright" (default) or "patchright" (stealth Chromium) */
+  backend: 'playwright' | 'patchright';
   /** Browser type: "firefox" (default), "chromium", "webkit" */
   browserType: 'firefox' | 'chromium' | 'webkit';
   /** Enable stealth mode (default: true) */
@@ -83,12 +81,6 @@ export class BrowserManager {
       this.config.browserType = 'chromium';
     }
 
-    // Camoufox only supports Firefox
-    if (this.config.backend === 'camoufox' && this.config.browserType !== 'firefox') {
-      console.error(`[BrowserManager] Camoufox only supports Firefox. Forcing browserType=firefox (was: ${this.config.browserType})`);
-      this.config.browserType = 'firefox';
-    }
-
     this.stealthManager = new StealthManager(this.config.fingerprint);
     this.networkCapture = new NetworkCapture(
       this.config.networkBufferSize !== undefined
@@ -134,11 +126,6 @@ export class BrowserManager {
       return patchright.chromium as unknown as BrowserType;
     }
 
-    if (backend === 'camoufox') {
-      const playwright = await import('playwright');
-      return playwright.firefox;
-    }
-
     const playwright = await import('playwright');
     switch (browserType) {
       case 'firefox':
@@ -178,59 +165,9 @@ export class BrowserManager {
   }
 
   /**
-   * Build launch options for Camoufox backend.
-   * Uses camoufox-js to get Playwright-compatible options (executablePath, args, env, etc.)
-   */
-  private async buildCamoufoxLaunchOptions(headless: boolean): Promise<Record<string, any>> {
-    const { launchOptions } = await import('camoufox-js');
-    const proxy = this.buildProxyConfig();
-
-    const camoufoxOpts: Record<string, any> = {
-      headless,
-    };
-
-    if (proxy) {
-      camoufoxOpts.proxy = proxy;
-    }
-
-    return await launchOptions(camoufoxOpts);
-  }
-
-  /**
    * Install browser if not found
    */
   private async installBrowser(): Promise<{ success: boolean; message: string }> {
-    if (this.config.backend === 'camoufox') {
-      return new Promise((resolve) => {
-        console.error(`[BrowserManager] Fetching Camoufox browser binary...`);
-        const installProcess = spawn('npx', ['camoufox-js', 'fetch'], {
-          stdio: ['ignore', 'pipe', 'pipe'],
-        });
-
-        let errorOutput = '';
-        installProcess.stderr?.on('data', (data) => { errorOutput += data.toString(); });
-
-        installProcess.on('close', (code) => {
-          if (code === 0) {
-            console.error(`[BrowserManager] Successfully fetched Camoufox binary`);
-            resolve({ success: true, message: `Fetched Camoufox binary` });
-          } else {
-            console.error(`[BrowserManager] Camoufox fetch failed: ${errorOutput}`);
-            resolve({ success: false, message: `Failed to fetch Camoufox binary. Run: npx camoufox-js fetch` });
-          }
-        });
-
-        installProcess.on('error', (error) => {
-          resolve({ success: false, message: `Install error: ${error.message}` });
-        });
-
-        setTimeout(() => {
-          installProcess.kill();
-          resolve({ success: false, message: 'Camoufox fetch timed out' });
-        }, 300000);
-      });
-    }
-
     const browserType = this.config.browserType;
     const cmd = this.config.backend === 'patchright' ? 'patchright' : 'playwright';
 
@@ -338,10 +275,7 @@ export class BrowserManager {
     viewport?: { width?: number; height?: number };
     userAgent?: string;
   }): Promise<BrowserContext> {
-    const isCamoufox = this.config.backend === 'camoufox';
-
-    // Camoufox handles its own fingerprinting at C++ level; skip JS-level stealth
-    const applyJsStealth = this.config.stealth && !isCamoufox;
+    const applyJsStealth = this.config.stealth;
 
     const viewport = applyJsStealth
       ? STEALTH_VIEWPORT
@@ -395,9 +329,6 @@ export class BrowserManager {
     headless?: boolean;
     browserType?: 'chromium' | 'firefox' | 'webkit';
   }): Promise<void> {
-    if (this.config.dockerMode && this.config.backend === 'camoufox') {
-      throw new Error('Camoufox backend does not support headless-docker mode. Use --headless instead, or switch to --backend playwright.');
-    }
     if (this.config.dockerMode) {
       await this.launchDocker(overrides);
     } else {
@@ -438,32 +369,6 @@ export class BrowserManager {
   }): Promise<void> {
     const browserType = await this.getBrowserType();
     const headless = overrides?.headless ?? this.config.headless;
-
-    if (this.config.backend === 'camoufox') {
-      try {
-        const camoufoxOptions = await this.buildCamoufoxLaunchOptions(headless);
-        this.browser = await browserType.launch(camoufoxOptions);
-      } catch (launchError: any) {
-        if (
-          launchError.message?.includes("Executable doesn't exist") ||
-          launchError.message?.includes("Failed to launch") ||
-          launchError.message?.includes("browserType.launch") ||
-          launchError.message?.includes("spawn")
-        ) {
-          const result = await this.installBrowser();
-          if (result.success) {
-            const camoufoxOptions = await this.buildCamoufoxLaunchOptions(headless);
-            this.browser = await browserType.launch(camoufoxOptions);
-          } else {
-            throw new Error(result.message);
-          }
-        } else {
-          throw launchError;
-        }
-      }
-      this.browser!.on('disconnected', () => this.reset());
-      return;
-    }
 
     const executablePath = process.env.CHROME_EXECUTABLE_PATH || undefined;
     const args = this.buildLaunchArgs();
@@ -584,7 +489,4 @@ export class BrowserManager {
     return this.config.backend === 'patchright';
   }
 
-  isCamoufox(): boolean {
-    return this.config.backend === 'camoufox';
-  }
 }

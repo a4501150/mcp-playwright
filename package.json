@@ -39,7 +39,6 @@
     "ghost-cursor-playwright": "^2.1.0",
     "header-generator": "^2.1.81",
     "mcp-evals": "^2.0.1",
-    "camoufox-js": "^0.8.5",
     "patchright": "^1.58.2",
     "playwright": "1.57.0",
     "uuid": "11.1.0"

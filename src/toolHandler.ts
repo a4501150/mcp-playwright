@@ -295,8 +295,6 @@ export async function handleToolCall(
         // Force correct browser type for backend
         if (backend === 'patchright') {
           globalConfig.browserType = 'chromium';
-        } else if (backend === 'camoufox') {
-          globalConfig.browserType = 'firefox';
         }
       }
 

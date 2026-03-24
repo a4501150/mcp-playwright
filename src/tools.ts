@@ -289,8 +289,8 @@ export function createToolDefinitions() {
           },
           backend: {
             type: "string",
-            enum: ["camoufox", "playwright", "patchright"],
-            description: "Browser backend: 'playwright' (default, standard Firefox with JS stealth), 'camoufox' (anti-detect Firefox), 'patchright' (stealth Chromium). Changing backend closes the current browser."
+            enum: ["playwright", "patchright"],
+            description: "Browser backend: 'playwright' (default, standard Firefox with JS stealth) or 'patchright' (stealth Chromium). Changing backend closes the current browser."
           }
         },
         required: ["mode"]
