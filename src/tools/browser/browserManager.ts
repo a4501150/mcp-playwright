@@ -13,7 +13,7 @@
 
 import type { Browser, Page, BrowserContext, BrowserType } from 'playwright';
 import { spawn } from 'child_process';
-import { STEALTH_CHROMIUM_ARGS, HARMFUL_ARGS, STEALTH_VIEWPORT, DEFAULT_VIEWPORT } from './constants.js';
+import { STEALTH_CHROMIUM_ARGS, HARMFUL_ARGS, DEFAULT_VIEWPORT } from './constants.js';
 import { StealthManager, type StealthConfig } from './stealth.js';
 import { NetworkCapture } from './network.js';
 import { DockerManager } from './dockerManager.js';
@@ -277,22 +277,29 @@ export class BrowserManager {
   }): Promise<BrowserContext> {
     const applyJsStealth = this.config.stealth;
 
-    const viewport = applyJsStealth
-      ? STEALTH_VIEWPORT
-      : {
+    // Use explicit viewport only if user provided one (via args or --viewport CLI flag).
+    // Otherwise null = dynamic viewport that follows the browser window size.
+    const hasExplicitViewport =
+      (overrides?.viewport?.width !== undefined && overrides?.viewport?.height !== undefined) ||
+      this.config.viewport !== undefined;
+
+    const viewport = hasExplicitViewport
+      ? {
           width: overrides?.viewport?.width ?? this.config.viewport?.width ?? DEFAULT_VIEWPORT.width,
           height: overrides?.viewport?.height ?? this.config.viewport?.height ?? DEFAULT_VIEWPORT.height,
-        };
+        }
+      : null;
 
     const contextOptions: Record<string, any> = {
       viewport,
-      deviceScaleFactor: 1,
       ...(overrides?.userAgent && { userAgent: overrides.userAgent }),
     };
 
     if (applyJsStealth) {
       const fpOptions = this.stealthManager.buildContextOptions(this.config.browserType);
       Object.assign(contextOptions, fpOptions);
+      // Always use our viewport setting — don't let the fingerprint override it
+      contextOptions.viewport = viewport;
     }
 
     const context = await this.browser!.newContext(contextOptions);
