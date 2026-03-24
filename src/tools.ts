@@ -83,8 +83,8 @@ export function createToolDefinitions() {
         properties: {
           url: { type: "string", description: "URL to navigate to the website specified" },
           browserType: { type: "string", description: "Browser type to use (chromium, firefox, webkit). Defaults to firefox", enum: ["chromium", "firefox", "webkit"] },
-          width: { type: "number", description: "Viewport width in pixels (default: 1440)" },
-          height: { type: "number", description: "Viewport height in pixels (default: 900)" },
+          width: { type: "number", description: "Viewport width in pixels (default: dynamic, follows window size)" },
+          height: { type: "number", description: "Viewport height in pixels (default: dynamic, follows window size)" },
           timeout: { type: "number", description: "Navigation timeout in milliseconds" },
           waitUntil: { type: "string", description: "Navigation wait condition" },
           headless: { type: "boolean", description: "Run browser in headless mode (default: false)" },

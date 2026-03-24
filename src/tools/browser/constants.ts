@@ -72,13 +72,7 @@ export const STEALTH_CHROMIUM_ARGS = [
   '--lang=en-US',
 ];
 
-/** Default viewport for stealth mode (common desktop resolution) */
-export const STEALTH_VIEWPORT = {
-  width: 1920,
-  height: 1080,
-};
-
-/** Default non-stealth viewport (common laptop resolution) */
+/** Fallback viewport when explicit dimensions are provided but incomplete */
 export const DEFAULT_VIEWPORT = {
   width: 1440,
   height: 900,
