@@ -2,6 +2,7 @@ import { BrowserToolBase } from './base.js';
 import { ToolContext, ToolResponse, createSuccessResponse, createErrorResponse } from '../common/types.js';
 import { setGlobalPage } from '../../toolHandler.js';
 import { createCursor } from 'ghost-cursor-playwright';
+import { resolveSelector } from './selectorUtils.js';
 /**
  * Tool for clicking elements on the page
  */
@@ -13,22 +14,23 @@ export class ClickTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
+      const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
       if (args.humanize) {
         try {
           const cursor = await createCursor(page);
           await cursor.actions.click({
-            target: args.selector,
+            target: selector,
             waitBeforeClick: [50, 200],
           });
-          return createSuccessResponse(`Clicked element (humanized): ${args.selector}`);
+          return createSuccessResponse(`Clicked element (humanized): ${selector}`);
         } catch {
           // Fall back to normal click if ghost-cursor fails
-          await page.click(args.selector);
-          return createSuccessResponse(`Clicked element (fallback): ${args.selector}`);
+          await page.click(selector);
+          return createSuccessResponse(`Clicked element (fallback): ${selector}`);
         }
       }
-      await page.click(args.selector);
-      return createSuccessResponse(`Clicked element: ${args.selector}`);
+      await page.click(selector);
+      return createSuccessResponse(`Clicked element: ${selector}`);
     });
   }
 }
@@ -114,11 +116,12 @@ export class FillTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-      await page.waitForSelector(args.selector);
+      const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+      await page.waitForSelector(selector);
 
       if (args.humanize) {
         // Clear existing value first
-        await page.click(args.selector, { clickCount: 3 });
+        await page.click(selector, { clickCount: 3 });
         await page.keyboard.press('Backspace');
 
         // Type with humanized delays
@@ -133,11 +136,11 @@ export class FillTool extends BrowserToolBase {
             await page.waitForTimeout(Math.floor(Math.random() * 300) + 100);
           }
         }
-        return createSuccessResponse(`Filled ${args.selector} with humanized typing: ${args.value}`);
+        return createSuccessResponse(`Filled ${selector} with humanized typing: ${args.value}`);
       }
 
-      await page.fill(args.selector, args.value);
-      return createSuccessResponse(`Filled ${args.selector} with: ${args.value}`);
+      await page.fill(selector, args.value);
+      return createSuccessResponse(`Filled ${selector} with: ${args.value}`);
     });
   }
 }
@@ -151,9 +154,10 @@ export class SelectTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-      await page.waitForSelector(args.selector);
-      await page.selectOption(args.selector, args.value);
-      return createSuccessResponse(`Selected ${args.selector} with: ${args.value}`);
+      const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+      await page.waitForSelector(selector);
+      await page.selectOption(selector, args.value);
+      return createSuccessResponse(`Selected ${selector} with: ${args.value}`);
     });
   }
 }
@@ -169,21 +173,22 @@ export class HoverTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-      await page.waitForSelector(args.selector);
+      const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+      await page.waitForSelector(selector);
 
       if (args.humanize) {
         try {
           const cursor = await createCursor(page);
-          await cursor.actions.move(args.selector);
-          return createSuccessResponse(`Hovered (humanized) ${args.selector}`);
+          await cursor.actions.move(selector);
+          return createSuccessResponse(`Hovered (humanized) ${selector}`);
         } catch {
-          await page.hover(args.selector);
-          return createSuccessResponse(`Hovered (fallback) ${args.selector}`);
+          await page.hover(selector);
+          return createSuccessResponse(`Hovered (fallback) ${selector}`);
         }
       }
 
-      await page.hover(args.selector);
-      return createSuccessResponse(`Hovered ${args.selector}`);
+      await page.hover(selector);
+      return createSuccessResponse(`Hovered ${selector}`);
     });
   }
 }
@@ -197,9 +202,10 @@ export class UploadFileTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-        await page.waitForSelector(args.selector);
-        await page.setInputFiles(args.selector, args.filePath);
-        return createSuccessResponse(`Uploaded file '${args.filePath}' to '${args.selector}'`);
+        const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+        await page.waitForSelector(selector);
+        await page.setInputFiles(selector, args.filePath);
+        return createSuccessResponse(`Uploaded file '${args.filePath}' to '${selector}'`);
     });
   }
 }
@@ -278,10 +284,11 @@ export class PressKeyTool extends BrowserToolBase {
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
       if (args.selector) {
-        await page.waitForSelector(args.selector);
-        await page.focus(args.selector);
+        const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+        await page.waitForSelector(selector);
+        await page.focus(selector);
       }
-      
+
       await page.keyboard.press(args.key);
       return createSuccessResponse(`Pressed key: ${args.key}`);
     });
@@ -349,6 +356,37 @@ export class IframeEvaluateTool extends BrowserToolBase {
 /**
  * Tool for switching browser tabs
  */
+/**
+ * Tool for waiting for a selector or text to appear on the page
+ */
+export class WaitForTool extends BrowserToolBase {
+  /**
+   * Execute the wait for tool
+   * @param args.selector CSS selector to wait for
+   * @param args.text Text content to wait for on the page
+   * @param args.state Element state to wait for (default: visible)
+   * @param args.timeout Maximum wait time in milliseconds (default: 30000)
+   */
+  async execute(args: any, context: ToolContext): Promise<ToolResponse> {
+    return this.safeExecute(context, async (page) => {
+      if (!args.selector && !args.text) {
+        return createErrorResponse("Either 'selector' or 'text' must be provided");
+      }
+
+      const state = args.state || 'visible';
+      const timeout = args.timeout || 30000;
+
+      if (args.selector) {
+        await page.waitForSelector(args.selector, { state, timeout });
+        return createSuccessResponse(`Element matching selector "${args.selector}" is ${state}`);
+      }
+
+      await page.locator(`text=${args.text}`).waitFor({ state, timeout });
+      return createSuccessResponse(`Text "${args.text}" is ${state} on the page`);
+    });
+  }
+}
+
 // export class SwitchTabTool extends BrowserToolBase {
 //   /**
 //    * Switch the tab to the specified index

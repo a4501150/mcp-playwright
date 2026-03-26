@@ -45,10 +45,11 @@ const DEFAULT_CAPTURE_CONFIG: NetworkCaptureConfig = {
 export class NetworkCapture {
   private requests: CapturedRequest[] = [];
   private nextId = 0;
-  private pendingRequests = new Map<string, CapturedRequest>();
+  private pendingRequests = new Map<Request, CapturedRequest>();
   private config: NetworkCaptureConfig;
   private includeRegexes: RegExp[] = [];
   private excludeRegexes: RegExp[] = [];
+  private attachedPages = new WeakSet<Page>();
 
   constructor(config?: Partial<NetworkCaptureConfig>) {
     this.config = { ...DEFAULT_CAPTURE_CONFIG, ...config };
@@ -119,6 +120,9 @@ export class NetworkCapture {
    * Attach request/response listeners to a Playwright page
    */
   attachToPage(page: Page): void {
+    if (this.attachedPages.has(page)) return;
+    this.attachedPages.add(page);
+
     page.on('request', (request: Request) => {
       const url = request.url();
       const resourceType = request.resourceType();
@@ -137,13 +141,12 @@ export class NetworkCapture {
         timestamp: Date.now(),
       };
 
-      this.pendingRequests.set(url + request.method(), captured);
+      this.pendingRequests.set(request, captured);
     });
 
     page.on('response', async (response: Response) => {
       const request = response.request();
-      const key = request.url() + request.method();
-      const captured = this.pendingRequests.get(key);
+      const captured = this.pendingRequests.get(request);
 
       if (captured) {
         captured.status = response.status();
@@ -159,10 +162,25 @@ export class NetworkCapture {
           captured.responseBody = '[unable to capture body]';
         }
 
-        this.pendingRequests.delete(key);
+        this.pendingRequests.delete(request);
         this.requests.push(captured);
 
         // Ring buffer: evict oldest (skip if unlimited)
+        if (this.config.maxRequests > 0 && this.requests.length > this.config.maxRequests) {
+          this.requests = this.requests.slice(-this.config.maxRequests);
+        }
+      }
+    });
+
+    page.on('requestfailed', (request: Request) => {
+      const captured = this.pendingRequests.get(request);
+      if (captured) {
+        captured.status = 0;
+        captured.statusText = request.failure()?.errorText || 'failed';
+        captured.duration = Date.now() - captured.timestamp;
+        this.pendingRequests.delete(request);
+        this.requests.push(captured);
+        // Apply ring buffer limit
         if (this.config.maxRequests > 0 && this.requests.length > this.config.maxRequests) {
           this.requests = this.requests.slice(-this.config.maxRequests);
         }
@@ -179,6 +197,7 @@ export class NetworkCapture {
     statusMin?: number;
     statusMax?: number;
     limit?: number;
+    includeIncomplete?: boolean;
   }): CapturedRequest[] {
     let results = [...this.requests];
 
@@ -190,10 +209,16 @@ export class NetworkCapture {
       results = results.filter(r => r.method.toUpperCase() === filter.method!.toUpperCase());
     }
     if (filter?.statusMin !== undefined) {
-      results = results.filter(r => r.status !== undefined && r.status >= filter.statusMin!);
+      results = results.filter(r =>
+        (filter.includeIncomplete && r.status === 0) ||
+        (r.status !== undefined && r.status >= filter.statusMin!)
+      );
     }
     if (filter?.statusMax !== undefined) {
-      results = results.filter(r => r.status !== undefined && r.status <= filter.statusMax!);
+      results = results.filter(r =>
+        (filter.includeIncomplete && r.status === 0) ||
+        (r.status !== undefined && r.status <= filter.statusMax!)
+      );
     }
     if (filter?.limit) {
       results = results.slice(-filter.limit);
@@ -213,6 +238,9 @@ export class NetworkCapture {
     this.requests = [];
     this.pendingRequests.clear();
     this.nextId = 0;
+    // Note: attachedPages is intentionally NOT cleared here because the event
+    // listeners are still registered on those pages. Clearing it would cause
+    // duplicate listeners to be attached on the next attachToPage() call.
   }
 }
 
@@ -234,6 +262,7 @@ export class NetworkRequestsTool extends BrowserToolBase {
       statusMin: args.statusMin,
       statusMax: args.statusMax,
       limit: args.limit || 50,
+      includeIncomplete: args.includeIncomplete,
     });
 
     if (requests.length === 0) {

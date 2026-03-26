@@ -29,7 +29,8 @@ import {
   EvaluateTool,
   IframeFillTool,
   IframeEvaluateTool,
-  UploadFileTool
+  UploadFileTool,
+  WaitForTool
 } from './tools/browser/interaction.js';
 import {
   VisibleTextTool,
@@ -126,6 +127,7 @@ let dragTool: DragTool;
 let pressKeyTool: PressKeyTool;
 let saveAsPdfTool: SaveAsPdfTool;
 let clickAndSwitchTabTool: ClickAndSwitchTabTool;
+let waitForTool: WaitForTool;
 
 // New tools
 let networkRequestsTool: NetworkRequestsTool;
@@ -222,6 +224,7 @@ function initializeTools(server: any) {
   if (!pressKeyTool) pressKeyTool = new PressKeyTool(server);
   if (!saveAsPdfTool) saveAsPdfTool = new SaveAsPdfTool(server);
   if (!clickAndSwitchTabTool) clickAndSwitchTabTool = new ClickAndSwitchTabTool(server);
+  if (!waitForTool) waitForTool = new WaitForTool(server);
 
   // New tools
   if (!networkRequestsTool) networkRequestsTool = new NetworkRequestsTool(server, networkCapture);
@@ -439,6 +442,8 @@ export async function handleToolCall(
         return await saveAsPdfTool.execute(args, context);
       case "playwright_click_and_switch_tab":
         return await clickAndSwitchTabTool.execute(args, context);
+      case "playwright_wait_for":
+        return await waitForTool.execute(args, context);
 
       // New tools
       case "playwright_snapshot":

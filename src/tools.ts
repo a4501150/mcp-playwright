@@ -95,18 +95,20 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_screenshot",
-      description: "Take a screenshot of the current page or a specific element",
+      description: "Take a screenshot of the current page or a specific element. Returns the screenshot inline as an image by default. Set savePng=true or downloadsDir to save to disk instead.",
       inputSchema: {
         type: "object",
         properties: {
           name: { type: "string", description: "Name for the screenshot" },
           selector: { type: "string", description: "CSS selector for element to screenshot" },
+          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
+          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
           width: { type: "number", description: "Width in pixels (default: 800)" },
           height: { type: "number", description: "Height in pixels (default: 600)" },
           storeBase64: { type: "boolean", description: "Store screenshot in base64 format (default: true)" },
           fullPage: { type: "boolean", description: "Store screenshot of the entire page (default: false)" },
-          savePng: { type: "boolean", description: "Save screenshot as PNG file (default: false)" },
-          downloadsDir: { type: "string", description: "Custom downloads directory path (default: user's Downloads folder)" },
+          savePng: { type: "boolean", description: "Save screenshot as PNG file to disk instead of returning inline (default: false)" },
+          downloadsDir: { type: "string", description: "Custom downloads directory path. When set, saves to disk instead of returning inline (default: user's Downloads folder)" },
         },
         required: ["name"],
       },
@@ -119,6 +121,8 @@ export function createToolDefinitions() {
         properties: {
           selector: { type: "string", description: "CSS selector for the element to click" },
           humanize: { type: "boolean", description: "Use human-like Bezier curve mouse movement (default: false)" },
+          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
+          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
         },
         required: ["selector"],
       },
@@ -157,6 +161,8 @@ export function createToolDefinitions() {
           selector: { type: "string", description: "CSS selector for input field" },
           value: { type: "string", description: "Value to fill" },
           humanize: { type: "boolean", description: "Use human-like typing with variable delays (default: false)" },
+          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
+          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
         },
         required: ["selector", "value"],
       },
@@ -169,6 +175,8 @@ export function createToolDefinitions() {
         properties: {
           selector: { type: "string", description: "CSS selector for element to select" },
           value: { type: "string", description: "Value to select" },
+          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
+          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
         },
         required: ["selector", "value"],
       },
@@ -181,6 +189,8 @@ export function createToolDefinitions() {
         properties: {
           selector: { type: "string", description: "CSS selector for element to hover" },
           humanize: { type: "boolean", description: "Use human-like Bezier curve mouse movement (default: false)" },
+          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
+          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
         },
         required: ["selector"],
       },
@@ -192,7 +202,9 @@ export function createToolDefinitions() {
         type: "object",
         properties: {
           selector: { type: "string", description: "CSS selector for the file input element" },
-          filePath: { type: "string", description: "Absolute path to the file to upload" }
+          filePath: { type: "string", description: "Absolute path to the file to upload" },
+          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
+          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
         },
         required: ["selector", "filePath"],
       },
@@ -503,7 +515,9 @@ export function createToolDefinitions() {
         type: "object",
         properties: {
           key: { type: "string", description: "Key to press (e.g. 'Enter', 'ArrowDown', 'a')" },
-          selector: { type: "string", description: "Optional CSS selector to focus before pressing key" }
+          selector: { type: "string", description: "Optional CSS selector to focus before pressing key" },
+          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
+          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
         },
         required: ["key"],
       },
@@ -543,6 +557,24 @@ export function createToolDefinitions() {
         required: ["selector"],
       },
     },
+    {
+      name: "playwright_wait_for",
+      description: "Wait for a selector or text to appear on the page. Use this instead of arbitrary sleeps to wait for page state.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          selector: { type: "string", description: "CSS selector to wait for" },
+          text: { type: "string", description: "Text content to wait for on the page" },
+          state: {
+            type: "string",
+            description: "Element state to wait for (default: visible)",
+            enum: ["attached", "detached", "visible", "hidden"]
+          },
+          timeout: { type: "number", description: "Maximum wait time in milliseconds (default: 30000)" },
+        },
+        required: [],
+      },
+    },
     // --- New tools ---
     {
       name: "playwright_iframe_evaluate",
@@ -580,6 +612,7 @@ export function createToolDefinitions() {
           statusMin: { type: "number", description: "Minimum status code to include" },
           statusMax: { type: "number", description: "Maximum status code to include" },
           limit: { type: "number", description: "Maximum number of requests to return (default: 50)" },
+          includeIncomplete: { type: "boolean", description: "Include failed/cancelled requests that had no response (default: false)" },
         },
         required: [],
       },
@@ -711,6 +744,7 @@ export const BROWSER_TOOLS = [
   "playwright_get_network_request",
   "playwright_start_trace",
   "playwright_stop_trace",
+  "playwright_wait_for",
 ];
 
 // API Request tools for conditional launch
