@@ -48,7 +48,7 @@ import { DragTool, PressKeyTool } from './tools/browser/interaction.js';
 import { SaveAsPdfTool } from './tools/browser/output.js';
 import { ClickAndSwitchTabTool } from './tools/browser/interaction.js';
 import { BrowserManager, type BrowserManagerConfig } from './tools/browser/browserManager.js';
-import { NetworkRequestsTool, GetNetworkRequestTool, NetworkConfigTool, DumpNetworkTool } from './tools/browser/network.js';
+import { NetworkRequestsTool, GetNetworkRequestTool, NetworkConfigTool, DumpNetworkTool, ClearNetworkTool } from './tools/browser/network.js';
 import { SnapshotTool } from './tools/browser/snapshot.js';
 import { StartTracingTool, StopTracingTool } from './tools/browser/performance.js';
 
@@ -134,6 +134,7 @@ let networkRequestsTool: NetworkRequestsTool;
 let getNetworkRequestTool: GetNetworkRequestTool;
 let networkConfigTool: NetworkConfigTool;
 let dumpNetworkTool: DumpNetworkTool;
+let clearNetworkTool: ClearNetworkTool;
 let snapshotTool: SnapshotTool;
 let startTracingTool: StartTracingTool;
 let stopTracingTool: StopTracingTool;
@@ -231,6 +232,7 @@ function initializeTools(server: any) {
   if (!getNetworkRequestTool) getNetworkRequestTool = new GetNetworkRequestTool(server, networkCapture);
   if (!networkConfigTool) networkConfigTool = new NetworkConfigTool(server, networkCapture);
   if (!dumpNetworkTool) dumpNetworkTool = new DumpNetworkTool(server, networkCapture);
+  if (!clearNetworkTool) clearNetworkTool = new ClearNetworkTool(server, networkCapture);
   if (!snapshotTool) snapshotTool = new SnapshotTool(server);
   if (!startTracingTool) startTracingTool = new StartTracingTool(server);
   if (!stopTracingTool) stopTracingTool = new StopTracingTool(server);
@@ -347,6 +349,9 @@ export async function handleToolCall(
     }
     if (name === "playwright_dump_network") {
       return await dumpNetworkTool.execute(args, { server });
+    }
+    if (name === "playwright_clear_network") {
+      return await clearNetworkTool.execute(args, { server });
     }
 
     // Check if we have a disconnected browser that needs cleanup

@@ -198,9 +198,18 @@ export class NetworkCapture {
     statusMax?: number;
     limit?: number;
     includeIncomplete?: boolean;
+    sinceTimestamp?: number;
+    resourceType?: string;
   }): CapturedRequest[] {
     let results = [...this.requests];
 
+    if (filter?.sinceTimestamp !== undefined) {
+      results = results.filter(r => r.timestamp >= filter.sinceTimestamp!);
+    }
+    if (filter?.resourceType) {
+      const rt = filter.resourceType.toLowerCase();
+      results = results.filter(r => r.resourceType.toLowerCase() === rt);
+    }
     if (filter?.urlPattern) {
       const regex = new RegExp(filter.urlPattern, 'i');
       results = results.filter(r => regex.test(r.url));
@@ -256,6 +265,28 @@ export class NetworkRequestsTool extends BrowserToolBase {
   }
 
   async execute(args: any, _context: ToolContext): Promise<ToolResponse> {
+    // Parse 'since' parameter into an absolute timestamp
+    let sinceTimestamp: number | undefined;
+    if (args.since !== undefined) {
+      const str = String(args.since);
+      const match = str.match(/^(\d+)(s|m|h)$/);
+      if (match) {
+        const value = parseInt(match[1], 10);
+        const unit = match[2];
+        const multiplier = unit === 's' ? 1000 : unit === 'm' ? 60000 : 3600000;
+        sinceTimestamp = Date.now() - (value * multiplier);
+      } else {
+        const ts = Number(str);
+        if (!isNaN(ts) && ts > 0) {
+          sinceTimestamp = ts;
+        } else {
+          return createErrorResponse(
+            `Invalid 'since' format: "${args.since}". Use relative format like "30s", "5m", "1h" or an epoch timestamp in milliseconds.`
+          );
+        }
+      }
+    }
+
     const requests = this.networkCapture.getRequests({
       urlPattern: args.urlPattern,
       method: args.method,
@@ -263,6 +294,8 @@ export class NetworkRequestsTool extends BrowserToolBase {
       statusMax: args.statusMax,
       limit: args.limit || 50,
       includeIncomplete: args.includeIncomplete,
+      sinceTimestamp,
+      resourceType: args.resourceType,
     });
 
     if (requests.length === 0) {
@@ -392,5 +425,23 @@ export class DumpNetworkTool extends BrowserToolBase {
     } catch (err) {
       return createErrorResponse(`Failed to write file: ${(err as Error).message}`);
     }
+  }
+}
+
+/**
+ * Tool: Clear the network request capture buffer
+ */
+export class ClearNetworkTool extends BrowserToolBase {
+  private networkCapture: NetworkCapture;
+
+  constructor(server: any, networkCapture: NetworkCapture) {
+    super(server);
+    this.networkCapture = networkCapture;
+  }
+
+  async execute(args: any, _context: ToolContext): Promise<ToolResponse> {
+    const count = this.networkCapture.getRequests().length;
+    this.networkCapture.clear();
+    return createSuccessResponse(`Cleared ${count} captured network request(s) from buffer`);
   }
 }

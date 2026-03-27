@@ -8,7 +8,7 @@ import { ToolContext, ToolResponse, createSuccessResponse } from '../common/type
 import { resolveSelector } from './selectorUtils.js';
 
 const defaultDownloadsPath = path.join(os.homedir(), 'Downloads');
-const MAX_INLINE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_INLINE_SIZE = 2.5 * 1024 * 1024; // 2.5MB
 
 /**
  * Tool for taking screenshots of pages or elements
@@ -21,10 +21,18 @@ export class ScreenshotTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
+      const format: 'png' | 'jpeg' | 'webp' = args.format || "png";
+      let actualFormat = format;
+
       const screenshotOptions: any = {
-        type: args.type || "png",
+        type: format,
         fullPage: !!args.fullPage
       };
+
+      // Playwright only accepts quality for jpeg and webp
+      if ((format === "jpeg" || format === "webp") && args.quality !== undefined) {
+        screenshotOptions.quality = args.quality;
+      }
 
       if (args.selector) {
         const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
@@ -41,25 +49,55 @@ export class ScreenshotTool extends BrowserToolBase {
         screenshotOptions.element = element;
       }
 
-      const saveToDisk = !!args.savePng || !!args.downloadsDir;
+      const saveToDisk = !!args.saveImg || !!args.savePath;
+
+      const getExt = (fmt: string) => fmt === "jpeg" ? "jpg" : fmt;
+      const getMimeType = (fmt: string) => fmt === "jpeg" ? "image/jpeg" : fmt === "webp" ? "image/webp" : "image/png";
 
       // Only set path when saving to disk
       let outputPath: string | undefined;
       if (saveToDisk) {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `${args.name || 'screenshot'}-${timestamp}.png`;
-        const downloadsDir = args.downloadsDir || defaultDownloadsPath;
+        if (args.savePath && /\.\w+$/.test(path.basename(args.savePath))) {
+          // savePath looks like a full file path
+          outputPath = path.resolve(args.savePath);
+          const dir = path.dirname(outputPath);
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+          }
+        } else {
+          // savePath is a directory (or not set, use default)
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const ext = getExt(format);
+          const filename = `${args.name || 'screenshot'}-${timestamp}.${ext}`;
+          const saveDir = args.savePath || defaultDownloadsPath;
 
-        if (!fs.existsSync(downloadsDir)) {
-          fs.mkdirSync(downloadsDir, { recursive: true });
+          if (!fs.existsSync(saveDir)) {
+            fs.mkdirSync(saveDir, { recursive: true });
+          }
+
+          outputPath = path.join(saveDir, filename);
         }
-
-        outputPath = path.join(downloadsDir, filename);
         screenshotOptions.path = outputPath;
       }
 
-      const screenshot = await page.screenshot(screenshotOptions);
-      const base64Screenshot = screenshot.toString('base64');
+      let screenshot = await page.screenshot(screenshotOptions);
+      let base64Screenshot = screenshot.toString('base64');
+
+      // AutoCompress: if PNG exceeds inline limit, retry as JPEG
+      let autoCompressed = false;
+      if (!saveToDisk && args.autoCompress && format === "png" && screenshot.length > MAX_INLINE_SIZE) {
+        const compressedOptions = { ...screenshotOptions, type: "jpeg" as const, quality: 80 };
+        delete compressedOptions.path;
+        const compressedScreenshot = await page.screenshot(compressedOptions);
+
+        if (compressedScreenshot.length <= MAX_INLINE_SIZE) {
+          const originalSize = screenshot.length;
+          screenshot = compressedScreenshot;
+          base64Screenshot = screenshot.toString('base64');
+          actualFormat = "jpeg";
+          autoCompressed = true;
+        }
+      }
 
       // Handle base64 storage for MCP resource access
       if (args.storeBase64 !== false) {
@@ -80,14 +118,18 @@ export class ScreenshotTool extends BrowserToolBase {
       } else if (screenshot.length > MAX_INLINE_SIZE) {
         // Inline mode but too large: fall back to saving to temp file
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `${args.name || 'screenshot'}-${timestamp}.png`;
+        const ext = getExt(actualFormat);
+        const filename = `${args.name || 'screenshot'}-${timestamp}.${ext}`;
         const tmpDir = os.tmpdir();
         const tmpPath = path.join(tmpDir, filename);
         fs.writeFileSync(tmpPath, screenshot);
         content.push({ type: "text", text: `Screenshot too large for inline (${(screenshot.length / 1024 / 1024).toFixed(1)}MB). Saved to: ${tmpPath}` });
       } else {
         // Inline mode: return ImageContent
-        content.push({ type: "image", data: base64Screenshot, mimeType: "image/png" });
+        if (autoCompressed) {
+          content.push({ type: "text", text: `Auto-compressed from PNG to JPEG (${(screenshot.length / 1024).toFixed(0)}KB)` });
+        }
+        content.push({ type: "image", data: base64Screenshot, mimeType: getMimeType(actualFormat) });
       }
 
       return { content, isError: false };

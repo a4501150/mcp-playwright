@@ -95,7 +95,7 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_screenshot",
-      description: "Take a screenshot of the current page or a specific element. Returns the screenshot inline as an image by default. Set savePng=true or downloadsDir to save to disk instead.",
+      description: "Take a screenshot of the current page or a specific element. Returns the screenshot inline as an image by default. Set saveImg=true or savePath to save to disk instead.",
       inputSchema: {
         type: "object",
         properties: {
@@ -107,8 +107,11 @@ export function createToolDefinitions() {
           height: { type: "number", description: "Height in pixels (default: 600)" },
           storeBase64: { type: "boolean", description: "Store screenshot in base64 format (default: true)" },
           fullPage: { type: "boolean", description: "Store screenshot of the entire page (default: false)" },
-          savePng: { type: "boolean", description: "Save screenshot as PNG file to disk instead of returning inline (default: false)" },
-          downloadsDir: { type: "string", description: "Custom downloads directory path. When set, saves to disk instead of returning inline (default: user's Downloads folder)" },
+          format: { type: "string", description: "Screenshot format (default: 'png')", enum: ["png", "jpeg", "webp"] },
+          quality: { type: "number", description: "Compression quality for JPEG and WebP formats (0-100). Higher values mean better quality but larger file sizes. Ignored for PNG format.", minimum: 0, maximum: 100 },
+          autoCompress: { type: "boolean", description: "When true, if a PNG screenshot exceeds the inline size limit (~2.5MB), auto-retry as JPEG (quality 80) to fit inline. Default: false." },
+          saveImg: { type: "boolean", description: "Save screenshot to disk instead of returning inline (default: false). Saves in the chosen format." },
+          savePath: { type: "string", description: "Save screenshot to this path. Can be a directory (auto-generates filename) or a full file path. Implies saveImg=true." },
         },
         required: ["name"],
       },
@@ -613,6 +616,8 @@ export function createToolDefinitions() {
           statusMax: { type: "number", description: "Maximum status code to include" },
           limit: { type: "number", description: "Maximum number of requests to return (default: 50)" },
           includeIncomplete: { type: "boolean", description: "Include failed/cancelled requests that had no response (default: false)" },
+          since: { type: "string", description: "Show only requests from this time onwards. Relative duration: '30s', '5m', '1h'. Or absolute epoch ms as string." },
+          resourceType: { type: "string", description: "Filter by resource type (e.g., 'fetch', 'xhr', 'document', 'script', 'stylesheet', 'image', 'font', 'websocket')." },
         },
         required: [],
       },
@@ -701,6 +706,15 @@ export function createToolDefinitions() {
         required: ["outputPath"],
       },
     },
+    {
+      name: "playwright_clear_network",
+      description: "Clear the network request capture buffer. Removes all stored requests and resets the request ID counter.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
   ] as const satisfies Tool[];
 }
 
@@ -708,6 +722,7 @@ export function createToolDefinitions() {
 export const NETWORK_TOOLS = [
   "playwright_network_config",
   "playwright_dump_network",
+  "playwright_clear_network",
 ];
 
 // Browser-requiring tools for conditional browser launch
