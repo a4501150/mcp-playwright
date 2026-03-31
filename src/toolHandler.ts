@@ -1,15 +1,15 @@
-import type { Page } from 'playwright';
-import { request } from 'playwright';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { BROWSER_TOOLS, API_TOOLS } from './tools.js';
-import type { ToolContext } from './tools/common/types.js';
-import { ActionRecorder } from './tools/codegen/recorder.js';
+import type { Page } from "playwright";
+import { request } from "playwright";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { BROWSER_TOOLS, API_TOOLS } from "./tools.js";
+import type { ToolContext } from "./tools/common/types.js";
+import { ActionRecorder } from "./tools/codegen/recorder.js";
 import {
   startCodegenSession,
   endCodegenSession,
   getCodegenSession,
-  clearCodegenSession
-} from './tools/codegen/index.js';
+  clearCodegenSession,
+} from "./tools/codegen/index.js";
 import {
   ScreenshotTool,
   NavigationTool,
@@ -18,8 +18,8 @@ import {
   ExpectResponseTool,
   AssertResponseTool,
   CustomUserAgentTool,
-  ResizeTool
-} from './tools/browser/index.js';
+  ResizeTool,
+} from "./tools/browser/index.js";
 import {
   ClickTool,
   IframeClickTool,
@@ -30,27 +30,40 @@ import {
   IframeFillTool,
   IframeEvaluateTool,
   UploadFileTool,
-  WaitForTool
-} from './tools/browser/interaction.js';
+  WaitForTool,
+} from "./tools/browser/interaction.js";
 import {
   VisibleTextTool,
-  VisibleHtmlTool
-} from './tools/browser/visiblePage.js';
+  VisibleHtmlTool,
+} from "./tools/browser/visiblePage.js";
 import {
   GetRequestTool,
   PostRequestTool,
   PutRequestTool,
   PatchRequestTool,
-  DeleteRequestTool
-} from './tools/api/requests.js';
-import { GoBackTool, GoForwardTool } from './tools/browser/navigation.js';
-import { DragTool, PressKeyTool } from './tools/browser/interaction.js';
-import { SaveAsPdfTool } from './tools/browser/output.js';
-import { ClickAndSwitchTabTool } from './tools/browser/interaction.js';
-import { BrowserManager, type BrowserManagerConfig } from './tools/browser/browserManager.js';
-import { NetworkRequestsTool, GetNetworkRequestTool, NetworkConfigTool, DumpNetworkTool, ClearNetworkTool } from './tools/browser/network.js';
-import { SnapshotTool } from './tools/browser/snapshot.js';
-import { StartTracingTool, StopTracingTool } from './tools/browser/performance.js';
+  DeleteRequestTool,
+} from "./tools/api/requests.js";
+import { GoBackTool, GoForwardTool } from "./tools/browser/navigation.js";
+import { DragTool, PressKeyTool } from "./tools/browser/interaction.js";
+import { SaveAsPdfTool } from "./tools/browser/output.js";
+import { ClickAndSwitchTabTool } from "./tools/browser/interaction.js";
+import {
+  BrowserManager,
+  type BrowserManagerConfig,
+} from "./tools/browser/browserManager.js";
+import {
+  NetworkRequestsTool,
+  GetNetworkRequestTool,
+  NetworkConfigTool,
+  DumpNetworkTool,
+  ClearNetworkTool,
+} from "./tools/browser/network.js";
+import { WaitForResponseTool } from "./tools/browser/waitForResponse.js";
+import { SnapshotTool } from "./tools/browser/snapshot.js";
+import {
+  StartTracingTool,
+  StopTracingTool,
+} from "./tools/browser/performance.js";
 
 // BrowserManager instance (replaces old global browser/page state)
 let browserManager: BrowserManager | undefined;
@@ -61,7 +74,9 @@ let globalConfig: Partial<BrowserManagerConfig> = {};
 /**
  * Set the global BrowserManager config (called from CLI arg parsing)
  */
-export function setGlobalBrowserConfig(config: Partial<BrowserManagerConfig>): void {
+export function setGlobalBrowserConfig(
+  config: Partial<BrowserManagerConfig>,
+): void {
   globalConfig = config;
 }
 
@@ -138,6 +153,7 @@ let clearNetworkTool: ClearNetworkTool;
 let snapshotTool: SnapshotTool;
 let startTracingTool: StartTracingTool;
 let stopTracingTool: StopTracingTool;
+let waitForResponseTool: WaitForResponseTool;
 
 async function registerConsoleMessage(page: Page) {
   page.on("console", (msg) => {
@@ -158,18 +174,24 @@ async function registerConsoleMessage(page: Page) {
     if (consoleLogsTool) {
       const message = error.message;
       const stack = error.stack || "";
-      consoleLogsTool.registerConsoleMessage("exception", `${message}\n${stack}`);
+      consoleLogsTool.registerConsoleMessage(
+        "exception",
+        `${message}\n${stack}`,
+      );
     }
   });
 
   await page.addInitScript(() => {
     window.addEventListener("unhandledrejection", (event) => {
       const reason = event.reason;
-      const message = typeof reason === "object" && reason !== null
+      const message =
+        typeof reason === "object" && reason !== null
           ? reason.message || JSON.stringify(reason)
           : String(reason);
       const stack = reason?.stack || "";
-      console.error(`[Playwright][Unhandled Rejection In Promise] ${message}\n${stack}`);
+      console.error(
+        `[Playwright][Unhandled Rejection In Promise] ${message}\n${stack}`,
+      );
     });
   });
 }
@@ -206,7 +228,8 @@ function initializeTools(server: any) {
   if (!evaluateTool) evaluateTool = new EvaluateTool(server);
   if (!expectResponseTool) expectResponseTool = new ExpectResponseTool(server);
   if (!assertResponseTool) assertResponseTool = new AssertResponseTool(server);
-  if (!customUserAgentTool) customUserAgentTool = new CustomUserAgentTool(server);
+  if (!customUserAgentTool)
+    customUserAgentTool = new CustomUserAgentTool(server);
   if (!visibleTextTool) visibleTextTool = new VisibleTextTool(server);
   if (!visibleHtmlTool) visibleHtmlTool = new VisibleHtmlTool(server);
   if (!resizeTool) resizeTool = new ResizeTool(server);
@@ -224,15 +247,23 @@ function initializeTools(server: any) {
   if (!dragTool) dragTool = new DragTool(server);
   if (!pressKeyTool) pressKeyTool = new PressKeyTool(server);
   if (!saveAsPdfTool) saveAsPdfTool = new SaveAsPdfTool(server);
-  if (!clickAndSwitchTabTool) clickAndSwitchTabTool = new ClickAndSwitchTabTool(server);
+  if (!clickAndSwitchTabTool)
+    clickAndSwitchTabTool = new ClickAndSwitchTabTool(server);
   if (!waitForTool) waitForTool = new WaitForTool(server);
 
   // New tools
-  if (!networkRequestsTool) networkRequestsTool = new NetworkRequestsTool(server, networkCapture);
-  if (!getNetworkRequestTool) getNetworkRequestTool = new GetNetworkRequestTool(server, networkCapture);
-  if (!networkConfigTool) networkConfigTool = new NetworkConfigTool(server, networkCapture);
-  if (!dumpNetworkTool) dumpNetworkTool = new DumpNetworkTool(server, networkCapture);
-  if (!clearNetworkTool) clearNetworkTool = new ClearNetworkTool(server, networkCapture);
+  if (!networkRequestsTool)
+    networkRequestsTool = new NetworkRequestsTool(server, networkCapture);
+  if (!getNetworkRequestTool)
+    getNetworkRequestTool = new GetNetworkRequestTool(server, networkCapture);
+  if (!networkConfigTool)
+    networkConfigTool = new NetworkConfigTool(server, networkCapture);
+  if (!dumpNetworkTool)
+    dumpNetworkTool = new DumpNetworkTool(server, networkCapture);
+  if (!clearNetworkTool)
+    clearNetworkTool = new ClearNetworkTool(server, networkCapture);
+  if (!waitForResponseTool)
+    waitForResponseTool = new WaitForResponseTool(server, networkCapture);
   if (!snapshotTool) snapshotTool = new SnapshotTool(server);
   if (!startTracingTool) startTracingTool = new StartTracingTool(server);
   if (!stopTracingTool) stopTracingTool = new StopTracingTool(server);
@@ -244,27 +275,27 @@ function initializeTools(server: any) {
 export async function handleToolCall(
   name: string,
   args: any,
-  server: any
+  server: any,
 ): Promise<CallToolResult> {
   initializeTools(server);
 
   try {
     // Handle codegen tools
     switch (name) {
-      case 'start_codegen_session':
+      case "start_codegen_session":
         return await handleCodegenResult(startCodegenSession.handler(args));
-      case 'end_codegen_session':
+      case "end_codegen_session":
         return await handleCodegenResult(endCodegenSession.handler(args));
-      case 'get_codegen_session':
+      case "get_codegen_session":
         return await handleCodegenResult(getCodegenSession.handler(args));
-      case 'clear_codegen_session':
+      case "clear_codegen_session":
         return await handleCodegenResult(clearCodegenSession.handler(args));
     }
 
     // Record tool action if there's an active session
     const recorder = ActionRecorder.getInstance();
     const activeSession = recorder.getActiveSession();
-    if (activeSession && name !== 'playwright_close') {
+    if (activeSession && name !== "playwright_close") {
       recorder.recordAction(name, args);
     }
 
@@ -298,8 +329,8 @@ export async function handleToolCall(
       if (backend) {
         globalConfig.backend = backend;
         // Force correct browser type for backend
-        if (backend === 'patchright') {
-          globalConfig.browserType = 'chromium';
+        if (backend === "patchright") {
+          globalConfig.browserType = "chromium";
         }
       }
 
@@ -315,7 +346,12 @@ export async function handleToolCall(
       const backendStr = backend || globalConfig.backend || "playwright";
       const browserStr = browser || globalConfig.browserType || "firefox";
       return {
-        content: [{ type: "text", text: `Browser mode set to '${mode}' with ${backendStr}/${browserStr}. Next browser action will launch with new settings.` }],
+        content: [
+          {
+            type: "text",
+            text: `Browser mode set to '${mode}' with ${backendStr}/${browserStr}. Next browser action will launch with new settings.`,
+          },
+        ],
         isError: false,
       };
     }
@@ -323,11 +359,15 @@ export async function handleToolCall(
     // Special case for listing pages (no browser launch needed)
     if (name === "playwright_list_pages") {
       const pages = mgr.getPages();
-      const text = pages.length === 0
-        ? "No pages open."
-        : pages.map(p =>
-            `[${p.index}] ${p.url} (context: ${p.contextName})${p.isActive ? " *active*" : ""}`
-          ).join("\n");
+      const text =
+        pages.length === 0
+          ? "No pages open."
+          : pages
+              .map(
+                (p) =>
+                  `[${p.index}] ${p.url} (context: ${p.contextName})${p.isActive ? " *active*" : ""}`,
+              )
+              .join("\n");
       return {
         content: [{ type: "text", text }],
         isError: false,
@@ -338,7 +378,12 @@ export async function handleToolCall(
     if (name === "playwright_select_page") {
       const page = await mgr.switchToPage(args.index);
       return {
-        content: [{ type: "text", text: `Switched to page [${args.index}]: ${page.url()}` }],
+        content: [
+          {
+            type: "text",
+            text: `Switched to page [${args.index}]: ${page.url()}`,
+          },
+        ],
         isError: false,
       };
     }
@@ -356,7 +401,11 @@ export async function handleToolCall(
 
     // Check if we have a disconnected browser that needs cleanup
     const currentBrowser = mgr.getBrowser();
-    if (currentBrowser && !currentBrowser.isConnected() && BROWSER_TOOLS.includes(name)) {
+    if (
+      currentBrowser &&
+      !currentBrowser.isConnected() &&
+      BROWSER_TOOLS.includes(name)
+    ) {
       mgr.reset();
     }
 
@@ -368,7 +417,10 @@ export async function handleToolCall(
       try {
         context.page = await mgr.ensureBrowser({
           viewport: { width: args.width, height: args.height },
-          userAgent: name === "playwright_custom_user_agent" ? args.userAgent : undefined,
+          userAgent:
+            name === "playwright_custom_user_agent"
+              ? args.userAgent
+              : undefined,
           headless: args.headless,
           browserType: args.browserType,
           isolatedContext: args.isolatedContext,
@@ -376,7 +428,12 @@ export async function handleToolCall(
         context.browser = mgr.getBrowser();
       } catch (error) {
         return {
-          content: [{ type: "text", text: `Failed to initialize browser: ${(error as Error).message}. Please try again.` }],
+          content: [
+            {
+              type: "text",
+              text: `Failed to initialize browser: ${(error as Error).message}. Please try again.`,
+            },
+          ],
           isError: true,
         };
       }
@@ -388,7 +445,12 @@ export async function handleToolCall(
         context.apiContext = await ensureApiContext(args.url);
       } catch (error) {
         return {
-          content: [{ type: "text", text: `Failed to initialize API context: ${(error as Error).message}` }],
+          content: [
+            {
+              type: "text",
+              text: `Failed to initialize API context: ${(error as Error).message}`,
+            },
+          ],
           isError: true,
         };
       }
@@ -429,6 +491,8 @@ export async function handleToolCall(
         return await expectResponseTool.execute(args, context);
       case "playwright_assert_response":
         return await assertResponseTool.execute(args, context);
+      case "playwright_wait_for_response":
+        return await waitForResponseTool.execute(args, context);
       case "playwright_custom_user_agent":
         return await customUserAgentTool.execute(args, context);
       case "playwright_get_visible_text":
@@ -484,7 +548,9 @@ export async function handleToolCall(
     if (BROWSER_TOOLS.includes(name)) {
       const errorMessage = (error as Error).message;
       if (
-        errorMessage.includes("Target page, context or browser has been closed") ||
+        errorMessage.includes(
+          "Target page, context or browser has been closed",
+        ) ||
         errorMessage.includes("Browser has been disconnected") ||
         errorMessage.includes("Target closed") ||
         errorMessage.includes("Protocol error") ||
@@ -492,20 +558,32 @@ export async function handleToolCall(
       ) {
         resetBrowserState();
         return {
-          content: [{ type: "text", text: `Browser connection error: ${errorMessage}. Browser state has been reset, please try again.` }],
+          content: [
+            {
+              type: "text",
+              text: `Browser connection error: ${errorMessage}. Browser state has been reset, please try again.`,
+            },
+          ],
           isError: true,
         };
       }
     }
 
     return {
-      content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
+      content: [
+        {
+          type: "text",
+          text: error instanceof Error ? error.message : String(error),
+        },
+      ],
       isError: true,
     };
   }
 }
 
-async function handleCodegenResult(resultPromise: Promise<any>): Promise<CallToolResult> {
+async function handleCodegenResult(
+  resultPromise: Promise<any>,
+): Promise<CallToolResult> {
   try {
     const result = await resultPromise;
     return {
@@ -514,7 +592,12 @@ async function handleCodegenResult(resultPromise: Promise<any>): Promise<CallToo
     };
   } catch (error) {
     return {
-      content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
+      content: [
+        {
+          type: "text",
+          text: error instanceof Error ? error.message : String(error),
+        },
+      ],
       isError: true,
     };
   }

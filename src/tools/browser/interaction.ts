@@ -1,8 +1,13 @@
-import { BrowserToolBase } from './base.js';
-import { ToolContext, ToolResponse, createSuccessResponse, createErrorResponse } from '../common/types.js';
-import { setGlobalPage } from '../../toolHandler.js';
-import { createCursor } from 'ghost-cursor-playwright';
-import { resolveSelector } from './selectorUtils.js';
+import { BrowserToolBase } from "./base.js";
+import {
+  ToolContext,
+  ToolResponse,
+  createSuccessResponse,
+  createErrorResponse,
+} from "../common/types.js";
+import { setGlobalPage } from "../../toolHandler.js";
+import { createCursor } from "ghost-cursor-playwright";
+import { resolveSelector } from "./selectorUtils.js";
 /**
  * Tool for clicking elements on the page
  */
@@ -14,7 +19,11 @@ export class ClickTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-      const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+      const selector = resolveSelector(
+        args.selector,
+        args.nth,
+        args.withinSelector,
+      );
       if (args.humanize) {
         try {
           const cursor = await createCursor(page);
@@ -22,11 +31,15 @@ export class ClickTool extends BrowserToolBase {
             target: selector,
             waitBeforeClick: [50, 200],
           });
-          return createSuccessResponse(`Clicked element (humanized): ${selector}`);
+          return createSuccessResponse(
+            `Clicked element (humanized): ${selector}`,
+          );
         } catch {
           // Fall back to normal click if ghost-cursor fails
           await page.click(selector);
-          return createSuccessResponse(`Clicked element (fallback): ${selector}`);
+          return createSuccessResponse(
+            `Clicked element (fallback): ${selector}`,
+          );
         }
       }
       await page.click(selector);
@@ -42,24 +55,25 @@ export class ClickAndSwitchTabTool extends BrowserToolBase {
    * Execute the click and switch tab tool
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
-    
     return this.safeExecute(context, async (page) => {
       // Listen for a new tab to open
       const [newPage] = await Promise.all([
         //context.browser.waitForEvent('page'), // Wait for a new page (tab) to open
-        page.context().waitForEvent('page'),// Wait for a new page (tab) to open
+        page.context().waitForEvent("page"), // Wait for a new page (tab) to open
         page.click(args.selector), // Click the link that opens the new tab
       ]);
 
       // Wait for the new page to load
-      await newPage.waitForLoadState('domcontentloaded');
+      await newPage.waitForLoadState("domcontentloaded");
 
       // Switch control to the new tab
       setGlobalPage(newPage);
       //page= newPage; // Update the current page to the new tab
       //context.page = newPage;
       //context.page.bringToFront(); // Bring the new tab to the front
-      return createSuccessResponse(`Clicked link and switched to new tab: ${newPage.url()}`);
+      return createSuccessResponse(
+        `Clicked link and switched to new tab: ${newPage.url()}`,
+      );
       //return createSuccessResponse(`Clicked link and switched to new tab: ${context.page.url()}`);
     });
   }
@@ -77,9 +91,11 @@ export class IframeClickTool extends BrowserToolBase {
       if (!frame) {
         return createErrorResponse(`Iframe not found: ${args.iframeSelector}`);
       }
-      
+
       await frame.locator(args.selector).click();
-      return createSuccessResponse(`Clicked element ${args.selector} inside iframe ${args.iframeSelector}`);
+      return createSuccessResponse(
+        `Clicked element ${args.selector} inside iframe ${args.iframeSelector}`,
+      );
     });
   }
 }
@@ -97,9 +113,11 @@ export class IframeFillTool extends BrowserToolBase {
       if (!frame) {
         return createErrorResponse(`Iframe not found: ${args.iframeSelector}`);
       }
-      
+
       await frame.locator(args.selector).fill(args.value);
-      return createSuccessResponse(`Filled element ${args.selector} inside iframe ${args.iframeSelector} with: ${args.value}`);
+      return createSuccessResponse(
+        `Filled element ${args.selector} inside iframe ${args.iframeSelector} with: ${args.value}`,
+      );
     });
   }
 }
@@ -116,19 +134,24 @@ export class FillTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-      const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+      const selector = resolveSelector(
+        args.selector,
+        args.nth,
+        args.withinSelector,
+      );
       await page.waitForSelector(selector);
 
       if (args.humanize) {
         // Clear existing value first
         await page.click(selector, { clickCount: 3 });
-        await page.keyboard.press('Backspace');
+        await page.keyboard.press("Backspace");
 
         // Type with humanized delays
         for (const char of args.value) {
-          const delay = char === ' '
-            ? Math.floor(Math.random() * 100) + 80   // longer pause after space
-            : Math.floor(Math.random() * 100) + 30;  // 30-130ms per char
+          const delay =
+            char === " "
+              ? Math.floor(Math.random() * 100) + 80 // longer pause after space
+              : Math.floor(Math.random() * 100) + 30; // 30-130ms per char
           await page.keyboard.type(char, { delay });
 
           // Occasional hesitation (3% chance)
@@ -136,7 +159,9 @@ export class FillTool extends BrowserToolBase {
             await page.waitForTimeout(Math.floor(Math.random() * 300) + 100);
           }
         }
-        return createSuccessResponse(`Filled ${selector} with humanized typing: ${args.value}`);
+        return createSuccessResponse(
+          `Filled ${selector} with humanized typing: ${args.value}`,
+        );
       }
 
       await page.fill(selector, args.value);
@@ -154,7 +179,11 @@ export class SelectTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-      const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+      const selector = resolveSelector(
+        args.selector,
+        args.nth,
+        args.withinSelector,
+      );
       await page.waitForSelector(selector);
       await page.selectOption(selector, args.value);
       return createSuccessResponse(`Selected ${selector} with: ${args.value}`);
@@ -173,7 +202,11 @@ export class HoverTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-      const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+      const selector = resolveSelector(
+        args.selector,
+        args.nth,
+        args.withinSelector,
+      );
       await page.waitForSelector(selector);
 
       if (args.humanize) {
@@ -202,10 +235,16 @@ export class UploadFileTool extends BrowserToolBase {
    */
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
-        const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
-        await page.waitForSelector(selector);
-        await page.setInputFiles(selector, args.filePath);
-        return createSuccessResponse(`Uploaded file '${args.filePath}' to '${selector}'`);
+      const selector = resolveSelector(
+        args.selector,
+        args.nth,
+        args.withinSelector,
+      );
+      await page.waitForSelector(selector);
+      await page.setInputFiles(selector, args.filePath);
+      return createSuccessResponse(
+        `Uploaded file '${args.filePath}' to '${selector}'`,
+      );
     });
   }
 }
@@ -220,7 +259,7 @@ export class EvaluateTool extends BrowserToolBase {
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
       const result = await page.evaluate(args.script);
-      
+
       // Convert result to string for display
       let resultStr: string;
       try {
@@ -228,12 +267,12 @@ export class EvaluateTool extends BrowserToolBase {
       } catch (error) {
         resultStr = String(result);
       }
-      
+
       return createSuccessResponse([
         `Executed JavaScript:`,
         `${args.script}`,
         `Result:`,
-        `${resultStr}`
+        `${resultStr}`,
       ]);
     });
   }
@@ -250,26 +289,30 @@ export class DragTool extends BrowserToolBase {
     return this.safeExecute(context, async (page) => {
       const sourceElement = await page.waitForSelector(args.sourceSelector);
       const targetElement = await page.waitForSelector(args.targetSelector);
-      
+
       const sourceBound = await sourceElement.boundingBox();
       const targetBound = await targetElement.boundingBox();
-      
+
       if (!sourceBound || !targetBound) {
-        return createErrorResponse("Could not get element positions for drag operation");
+        return createErrorResponse(
+          "Could not get element positions for drag operation",
+        );
       }
 
       await page.mouse.move(
         sourceBound.x + sourceBound.width / 2,
-        sourceBound.y + sourceBound.height / 2
+        sourceBound.y + sourceBound.height / 2,
       );
       await page.mouse.down();
       await page.mouse.move(
         targetBound.x + targetBound.width / 2,
-        targetBound.y + targetBound.height / 2
+        targetBound.y + targetBound.height / 2,
       );
       await page.mouse.up();
-      
-      return createSuccessResponse(`Dragged element from ${args.sourceSelector} to ${args.targetSelector}`);
+
+      return createSuccessResponse(
+        `Dragged element from ${args.sourceSelector} to ${args.targetSelector}`,
+      );
     });
   }
 }
@@ -284,7 +327,11 @@ export class PressKeyTool extends BrowserToolBase {
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
       if (args.selector) {
-        const selector = resolveSelector(args.selector, args.nth, args.withinSelector);
+        const selector = resolveSelector(
+          args.selector,
+          args.nth,
+          args.withinSelector,
+        );
         await page.waitForSelector(selector);
         await page.focus(selector);
       }
@@ -293,8 +340,7 @@ export class PressKeyTool extends BrowserToolBase {
       return createSuccessResponse(`Pressed key: ${args.key}`);
     });
   }
-} 
-
+}
 
 /**
  * Tool for evaluating JavaScript inside an iframe
@@ -311,9 +357,13 @@ export class IframeEvaluateTool extends BrowserToolBase {
 
         if (args.urlPattern) {
           // Find frame by URL pattern
-          const frame = page.frames().find(f => f.url().includes(args.urlPattern));
+          const frame = page
+            .frames()
+            .find((f) => f.url().includes(args.urlPattern));
           if (!frame) {
-            return createErrorResponse(`No iframe found matching URL pattern: ${args.urlPattern}`);
+            return createErrorResponse(
+              `No iframe found matching URL pattern: ${args.urlPattern}`,
+            );
           }
           result = await frame.evaluate(args.script);
         } else if (args.iframeSelector) {
@@ -322,15 +372,21 @@ export class IframeEvaluateTool extends BrowserToolBase {
           // frameLocator doesn't have evaluate directly — find the frame via element handle
           const frameElement = await page.$(args.iframeSelector);
           if (!frameElement) {
-            return createErrorResponse(`Iframe not found: ${args.iframeSelector}`);
+            return createErrorResponse(
+              `Iframe not found: ${args.iframeSelector}`,
+            );
           }
           const frame = await frameElement.contentFrame();
           if (!frame) {
-            return createErrorResponse(`Could not access iframe content: ${args.iframeSelector}`);
+            return createErrorResponse(
+              `Could not access iframe content: ${args.iframeSelector}`,
+            );
           }
           result = await frame.evaluate(args.script);
         } else {
-          return createErrorResponse('Either iframeSelector or urlPattern is required');
+          return createErrorResponse(
+            "Either iframeSelector or urlPattern is required",
+          );
         }
 
         let resultStr: string;
@@ -347,7 +403,9 @@ export class IframeEvaluateTool extends BrowserToolBase {
           `${resultStr}`,
         ]);
       } catch (error) {
-        return createErrorResponse(`Iframe evaluate failed: ${(error as Error).message}`);
+        return createErrorResponse(
+          `Iframe evaluate failed: ${(error as Error).message}`,
+        );
       }
     });
   }
@@ -370,19 +428,28 @@ export class WaitForTool extends BrowserToolBase {
   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
     return this.safeExecute(context, async (page) => {
       if (!args.selector && !args.text) {
-        return createErrorResponse("Either 'selector' or 'text' must be provided");
+        return createErrorResponse(
+          "Either 'selector' or 'text' must be provided",
+        );
       }
 
-      const state = args.state || 'visible';
+      const state = args.state || "visible";
       const timeout = args.timeout || 30000;
+      const strict = args.strict ?? false;
 
       if (args.selector) {
-        await page.waitForSelector(args.selector, { state, timeout });
-        return createSuccessResponse(`Element matching selector "${args.selector}" is ${state}`);
+        const locator = page.locator(args.selector);
+        await (strict ? locator : locator.first()).waitFor({ state, timeout });
+        return createSuccessResponse(
+          `Element matching selector "${args.selector}" is ${state}`,
+        );
       }
 
-      await page.locator(`text=${args.text}`).waitFor({ state, timeout });
-      return createSuccessResponse(`Text "${args.text}" is ${state} on the page`);
+      const locator = page.locator(`text=${args.text}`);
+      await (strict ? locator : locator.first()).waitFor({ state, timeout });
+      return createSuccessResponse(
+        `Text "${args.text}" is ${state} on the page`,
+      );
     });
   }
 }
@@ -393,7 +460,7 @@ export class WaitForTool extends BrowserToolBase {
 //    */
 //   async execute(args: any, context: ToolContext): Promise<ToolResponse> {
 //     return this.safeExecute(context, async (page) => {
-//       const tabs = await browser.page;      
+//       const tabs = await browser.page;
 
 //       // Validate the tab index
 //       const tabIndex = Number(args.index);

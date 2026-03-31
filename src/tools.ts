@@ -1,12 +1,13 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { codegenTools } from './tools/codegen';
+import { codegenTools } from "./tools/codegen";
 
 export function createToolDefinitions() {
   return [
     // Codegen tools
     {
       name: "start_codegen_session",
-      description: "Start a new code generation session to record Playwright actions",
+      description:
+        "Start a new code generation session to record Playwright actions",
       inputSchema: {
         type: "object",
         properties: {
@@ -14,24 +15,27 @@ export function createToolDefinitions() {
             type: "object",
             description: "Code generation options",
             properties: {
-              outputPath: { 
-                type: "string", 
-                description: "Directory path where generated tests will be saved (use absolute path)" 
+              outputPath: {
+                type: "string",
+                description:
+                  "Directory path where generated tests will be saved (use absolute path)",
               },
-              testNamePrefix: { 
-                type: "string", 
-                description: "Prefix to use for generated test names (default: 'GeneratedTest')" 
+              testNamePrefix: {
+                type: "string",
+                description:
+                  "Prefix to use for generated test names (default: 'GeneratedTest')",
               },
-              includeComments: { 
-                type: "boolean", 
-                description: "Whether to include descriptive comments in generated tests" 
-              }
+              includeComments: {
+                type: "boolean",
+                description:
+                  "Whether to include descriptive comments in generated tests",
+              },
             },
-            required: ["outputPath"]
-          }
+            required: ["outputPath"],
+          },
         },
-        required: ["options"]
-      }
+        required: ["options"],
+      },
     },
     {
       name: "end_codegen_session",
@@ -39,13 +43,13 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          sessionId: { 
-            type: "string", 
-            description: "ID of the session to end" 
-          }
+          sessionId: {
+            type: "string",
+            description: "ID of the session to end",
+          },
         },
-        required: ["sessionId"]
-      }
+        required: ["sessionId"],
+      },
     },
     {
       name: "get_codegen_session",
@@ -53,13 +57,13 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          sessionId: { 
-            type: "string", 
-            description: "ID of the session to retrieve" 
-          }
+          sessionId: {
+            type: "string",
+            description: "ID of the session to retrieve",
+          },
         },
-        required: ["sessionId"]
-      }
+        required: ["sessionId"],
+      },
     },
     {
       name: "clear_codegen_session",
@@ -67,13 +71,13 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          sessionId: { 
-            type: "string", 
-            description: "ID of the session to clear" 
-          }
+          sessionId: {
+            type: "string",
+            description: "ID of the session to clear",
+          },
         },
-        required: ["sessionId"]
-      }
+        required: ["sessionId"],
+      },
     },
     {
       name: "playwright_navigate",
@@ -81,51 +85,142 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          url: { type: "string", description: "URL to navigate to the website specified" },
-          browserType: { type: "string", description: "Browser type to use (chromium, firefox, webkit). Defaults to firefox", enum: ["chromium", "firefox", "webkit"] },
-          width: { type: "number", description: "Viewport width in pixels. Omit for auto-sizing to browser window" },
-          height: { type: "number", description: "Viewport height in pixels. Omit for auto-sizing to browser window" },
-          timeout: { type: "number", description: "Navigation timeout in milliseconds" },
-          waitUntil: { type: "string", description: "Navigation wait condition" },
-          headless: { type: "boolean", description: "Run browser in headless mode (default: false)" },
-          isolatedContext: { type: "string", description: "Create or reuse a named isolated browser context with separate cookies and storage. Pages in different contexts are fully isolated (different sessions). Omit for the default shared context." }
+          url: {
+            type: "string",
+            description: "URL to navigate to the website specified",
+          },
+          browserType: {
+            type: "string",
+            description:
+              "Browser type to use (chromium, firefox, webkit). Defaults to firefox",
+            enum: ["chromium", "firefox", "webkit"],
+          },
+          width: {
+            type: "number",
+            description:
+              "Viewport width in pixels. Omit for auto-sizing to browser window",
+          },
+          height: {
+            type: "number",
+            description:
+              "Viewport height in pixels. Omit for auto-sizing to browser window",
+          },
+          timeout: {
+            type: "number",
+            description: "Navigation timeout in milliseconds",
+          },
+          waitUntil: {
+            type: "string",
+            description: "Navigation wait condition",
+          },
+          headless: {
+            type: "boolean",
+            description: "Run browser in headless mode (default: false)",
+          },
+          isolatedContext: {
+            type: "string",
+            description:
+              "Create or reuse a named isolated browser context with separate cookies and storage. Pages in different contexts are fully isolated (different sessions). Omit for the default shared context.",
+          },
         },
         required: ["url"],
       },
     },
     {
       name: "playwright_screenshot",
-      description: "Take a screenshot of the current page or a specific element. Returns the screenshot inline as an image by default. Set saveImg=true or savePath to save to disk instead.",
+      description:
+        "Take a screenshot of the current page or a specific element. Returns the screenshot inline as an image by default. Set saveImg=true or savePath to save to disk instead.",
       inputSchema: {
         type: "object",
         properties: {
           name: { type: "string", description: "Name for the screenshot" },
-          selector: { type: "string", description: "CSS selector for element to screenshot" },
-          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
-          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
-          width: { type: "number", description: "Width in pixels (default: 800)" },
-          height: { type: "number", description: "Height in pixels (default: 600)" },
-          storeBase64: { type: "boolean", description: "Store screenshot in base64 format (default: true)" },
-          fullPage: { type: "boolean", description: "Store screenshot of the entire page (default: false)" },
-          format: { type: "string", description: "Screenshot format (default: 'png')", enum: ["png", "jpeg", "webp"] },
-          quality: { type: "number", description: "Compression quality for JPEG and WebP formats (0-100). Higher values mean better quality but larger file sizes. Ignored for PNG format.", minimum: 0, maximum: 100 },
-          autoCompress: { type: "boolean", description: "When true, if a PNG screenshot exceeds the inline size limit (~2.5MB), auto-retry as JPEG (quality 80) to fit inline. Default: false." },
-          saveImg: { type: "boolean", description: "Save screenshot to disk instead of returning inline (default: false). Saves in the chosen format." },
-          savePath: { type: "string", description: "Save screenshot to this path. Can be a directory (auto-generates filename) or a full file path. Implies saveImg=true." },
+          selector: {
+            type: "string",
+            description: "CSS selector for element to screenshot",
+          },
+          nth: {
+            type: "number",
+            description:
+              "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)",
+          },
+          withinSelector: {
+            type: "string",
+            description:
+              "Scope the search: find the target selector only within elements matching this selector",
+          },
+          width: {
+            type: "number",
+            description: "Width in pixels (default: 800)",
+          },
+          height: {
+            type: "number",
+            description: "Height in pixels (default: 600)",
+          },
+          storeBase64: {
+            type: "boolean",
+            description: "Store screenshot in base64 format (default: true)",
+          },
+          fullPage: {
+            type: "boolean",
+            description: "Store screenshot of the entire page (default: false)",
+          },
+          format: {
+            type: "string",
+            description: "Screenshot format (default: 'png')",
+            enum: ["png", "jpeg", "webp"],
+          },
+          quality: {
+            type: "number",
+            description:
+              "Compression quality for JPEG and WebP formats (0-100). Higher values mean better quality but larger file sizes. Ignored for PNG format.",
+            minimum: 0,
+            maximum: 100,
+          },
+          autoCompress: {
+            type: "boolean",
+            description:
+              "When true, if a PNG screenshot exceeds the inline size limit (~2.5MB), auto-retry as JPEG (quality 80) to fit inline. Default: false.",
+          },
+          saveImg: {
+            type: "boolean",
+            description:
+              "Save screenshot to disk instead of returning inline (default: false). Saves in the chosen format.",
+          },
+          savePath: {
+            type: "string",
+            description:
+              "Save screenshot to this path. Can be a directory (auto-generates filename) or a full file path. Implies saveImg=true.",
+          },
         },
         required: ["name"],
       },
     },
     {
       name: "playwright_click",
-      description: "Click an element on the page. Set humanize=true for Bezier curve mouse movement.",
+      description:
+        "Click an element on the page. Set humanize=true for Bezier curve mouse movement.",
       inputSchema: {
         type: "object",
         properties: {
-          selector: { type: "string", description: "CSS selector for the element to click" },
-          humanize: { type: "boolean", description: "Use human-like Bezier curve mouse movement (default: false)" },
-          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
-          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
+          selector: {
+            type: "string",
+            description: "CSS selector for the element to click",
+          },
+          humanize: {
+            type: "boolean",
+            description:
+              "Use human-like Bezier curve mouse movement (default: false)",
+          },
+          nth: {
+            type: "number",
+            description:
+              "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)",
+          },
+          withinSelector: {
+            type: "string",
+            description:
+              "Scope the search: find the target selector only within elements matching this selector",
+          },
         },
         required: ["selector"],
       },
@@ -136,8 +231,15 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          iframeSelector: { type: "string", description: "CSS selector for the iframe containing the element to click" },
-          selector: { type: "string", description: "CSS selector for the element to click" },
+          iframeSelector: {
+            type: "string",
+            description:
+              "CSS selector for the iframe containing the element to click",
+          },
+          selector: {
+            type: "string",
+            description: "CSS selector for the element to click",
+          },
         },
         required: ["iframeSelector", "selector"],
       },
@@ -148,8 +250,15 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          iframeSelector: { type: "string", description: "CSS selector for the iframe containing the element to fill" },
-          selector: { type: "string", description: "CSS selector for the element to fill" },
+          iframeSelector: {
+            type: "string",
+            description:
+              "CSS selector for the iframe containing the element to fill",
+          },
+          selector: {
+            type: "string",
+            description: "CSS selector for the element to fill",
+          },
           value: { type: "string", description: "Value to fill" },
         },
         required: ["iframeSelector", "selector", "value"],
@@ -157,15 +266,31 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_fill",
-      description: "Fill out an input field. Set humanize=true for realistic typing with variable delays.",
+      description:
+        "Fill out an input field. Set humanize=true for realistic typing with variable delays.",
       inputSchema: {
         type: "object",
         properties: {
-          selector: { type: "string", description: "CSS selector for input field" },
+          selector: {
+            type: "string",
+            description: "CSS selector for input field",
+          },
           value: { type: "string", description: "Value to fill" },
-          humanize: { type: "boolean", description: "Use human-like typing with variable delays (default: false)" },
-          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
-          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
+          humanize: {
+            type: "boolean",
+            description:
+              "Use human-like typing with variable delays (default: false)",
+          },
+          nth: {
+            type: "number",
+            description:
+              "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)",
+          },
+          withinSelector: {
+            type: "string",
+            description:
+              "Scope the search: find the target selector only within elements matching this selector",
+          },
         },
         required: ["selector", "value"],
       },
@@ -176,24 +301,51 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          selector: { type: "string", description: "CSS selector for element to select" },
+          selector: {
+            type: "string",
+            description: "CSS selector for element to select",
+          },
           value: { type: "string", description: "Value to select" },
-          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
-          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
+          nth: {
+            type: "number",
+            description:
+              "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)",
+          },
+          withinSelector: {
+            type: "string",
+            description:
+              "Scope the search: find the target selector only within elements matching this selector",
+          },
         },
         required: ["selector", "value"],
       },
     },
     {
       name: "playwright_hover",
-      description: "Hover an element on the page. Set humanize=true for Bezier curve mouse movement.",
+      description:
+        "Hover an element on the page. Set humanize=true for Bezier curve mouse movement.",
       inputSchema: {
         type: "object",
         properties: {
-          selector: { type: "string", description: "CSS selector for element to hover" },
-          humanize: { type: "boolean", description: "Use human-like Bezier curve mouse movement (default: false)" },
-          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
-          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
+          selector: {
+            type: "string",
+            description: "CSS selector for element to hover",
+          },
+          humanize: {
+            type: "boolean",
+            description:
+              "Use human-like Bezier curve mouse movement (default: false)",
+          },
+          nth: {
+            type: "number",
+            description:
+              "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)",
+          },
+          withinSelector: {
+            type: "string",
+            description:
+              "Scope the search: find the target selector only within elements matching this selector",
+          },
         },
         required: ["selector"],
       },
@@ -204,10 +356,24 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          selector: { type: "string", description: "CSS selector for the file input element" },
-          filePath: { type: "string", description: "Absolute path to the file to upload" },
-          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
-          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
+          selector: {
+            type: "string",
+            description: "CSS selector for the file input element",
+          },
+          filePath: {
+            type: "string",
+            description: "Absolute path to the file to upload",
+          },
+          nth: {
+            type: "number",
+            description:
+              "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)",
+          },
+          withinSelector: {
+            type: "string",
+            description:
+              "Scope the search: find the target selector only within elements matching this selector",
+          },
         },
         required: ["selector", "filePath"],
       },
@@ -225,54 +391,71 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_console_logs",
-      description: "Retrieve console logs from the browser with filtering options",
+      description:
+        "Retrieve console logs from the browser with filtering options",
       inputSchema: {
         type: "object",
         properties: {
           type: {
             type: "string",
-            description: "Type of logs to retrieve (all, error, warning, log, info, debug, exception)",
-            enum: ["all", "error", "warning", "log", "info", "debug", "exception"]
+            description:
+              "Type of logs to retrieve (all, error, warning, log, info, debug, exception)",
+            enum: [
+              "all",
+              "error",
+              "warning",
+              "log",
+              "info",
+              "debug",
+              "exception",
+            ],
           },
           search: {
             type: "string",
-            description: "Text to search for in logs (handles text with square brackets)"
+            description:
+              "Text to search for in logs (handles text with square brackets)",
           },
           limit: {
             type: "number",
-            description: "Maximum number of logs to return"
+            description: "Maximum number of logs to return",
           },
           clear: {
             type: "boolean",
-            description: "Whether to clear logs after retrieval (default: false)"
-          }
+            description:
+              "Whether to clear logs after retrieval (default: false)",
+          },
         },
         required: [],
       },
     },
     {
       name: "playwright_resize",
-      description: "Resize the browser viewport using manual dimensions or device presets. Supports 143+ device presets including iPhone, iPad, Android devices, and desktop browsers with proper user-agent and touch emulation.",
+      description:
+        "Resize the browser viewport using manual dimensions or device presets. Supports 143+ device presets including iPhone, iPad, Android devices, and desktop browsers with proper user-agent and touch emulation.",
       inputSchema: {
         type: "object",
         properties: {
-          device: { 
-            type: "string", 
-            description: "Device preset name (e.g., 'iPhone 13', 'iPad Pro 11', 'Pixel 7', 'Galaxy S24', 'Desktop Chrome'). Automatically configures viewport, user-agent, and device capabilities. Use playwright.devices to see all available devices." 
+          device: {
+            type: "string",
+            description:
+              "Device preset name (e.g., 'iPhone 13', 'iPad Pro 11', 'Pixel 7', 'Galaxy S24', 'Desktop Chrome'). Automatically configures viewport, user-agent, and device capabilities. Use playwright.devices to see all available devices.",
           },
-          width: { 
-            type: "number", 
-            description: "Viewport width in pixels (for manual resize without device preset)" 
+          width: {
+            type: "number",
+            description:
+              "Viewport width in pixels (for manual resize without device preset)",
           },
-          height: { 
-            type: "number", 
-            description: "Viewport height in pixels (for manual resize without device preset)" 
+          height: {
+            type: "number",
+            description:
+              "Viewport height in pixels (for manual resize without device preset)",
           },
           orientation: {
             type: "string",
-            description: "Device orientation: 'portrait' or 'landscape' (only applies when using device preset)",
-            enum: ["portrait", "landscape"]
-          }
+            description:
+              "Device orientation: 'portrait' or 'landscape' (only applies when using device preset)",
+            enum: ["portrait", "landscape"],
+          },
         },
         required: [],
       },
@@ -288,48 +471,57 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_set_browser_mode",
-      description: "Switch the browser mode at runtime. Closes the current browser (if running) and configures the next launch. Modes: 'headed' (visible window, default), 'headless' (invisible, fast, but detectable by bot protection), 'headless-docker' (invisible via Docker+Xvfb, passes all bot detection, requires Docker). Optionally change the browser engine or backend.",
+      description:
+        "Switch the browser mode at runtime. Closes the current browser (if running) and configures the next launch. Modes: 'headed' (visible window, default), 'headless' (invisible, fast, but detectable by bot protection), 'headless-docker' (invisible via Docker+Xvfb, passes all bot detection, requires Docker). Optionally change the browser engine or backend.",
       inputSchema: {
         type: "object",
         properties: {
           mode: {
             type: "string",
             enum: ["headed", "headless", "headless-docker"],
-            description: "Browser mode: 'headed' shows a window, 'headless' is invisible but detectable, 'headless-docker' is invisible and undetectable (requires Docker)"
+            description:
+              "Browser mode: 'headed' shows a window, 'headless' is invisible but detectable, 'headless-docker' is invisible and undetectable (requires Docker)",
           },
           browser: {
             type: "string",
             enum: ["chromium", "firefox", "webkit"],
-            description: "Browser engine to use (optional, keeps current if not specified)"
+            description:
+              "Browser engine to use (optional, keeps current if not specified)",
           },
           backend: {
             type: "string",
             enum: ["playwright", "patchright"],
-            description: "Browser backend: 'playwright' (default, standard Firefox with JS stealth) or 'patchright' (stealth Chromium). Changing backend closes the current browser."
-          }
+            description:
+              "Browser backend: 'playwright' (default, standard Firefox with JS stealth) or 'patchright' (stealth Chromium). Changing backend closes the current browser.",
+          },
         },
-        required: ["mode"]
-      }
+        required: ["mode"],
+      },
     },
     {
       name: "playwright_list_pages",
-      description: "List all open pages across all browser contexts. Shows page index, URL, and context name. Use the index with playwright_select_page to switch between pages.",
+      description:
+        "List all open pages across all browser contexts. Shows page index, URL, and context name. Use the index with playwright_select_page to switch between pages.",
       inputSchema: {
         type: "object",
         properties: {},
-        required: []
-      }
+        required: [],
+      },
     },
     {
       name: "playwright_select_page",
-      description: "Switch the active page by its index (from playwright_list_pages). All subsequent browser tool calls will operate on this page.",
+      description:
+        "Switch the active page by its index (from playwright_list_pages). All subsequent browser tool calls will operate on this page.",
       inputSchema: {
         type: "object",
         properties: {
-          index: { type: "number", description: "Page index from playwright_list_pages" }
+          index: {
+            type: "number",
+            description: "Page index from playwright_list_pages",
+          },
         },
-        required: ["index"]
-      }
+        required: ["index"],
+      },
     },
     {
       name: "playwright_get",
@@ -338,12 +530,15 @@ export function createToolDefinitions() {
         type: "object",
         properties: {
           url: { type: "string", description: "URL to perform GET operation" },
-          token: { type: "string", description: "Bearer token for authorization" },
-          headers: { 
-            type: "object", 
+          token: {
+            type: "string",
+            description: "Bearer token for authorization",
+          },
+          headers: {
+            type: "object",
             description: "Additional headers to include in the request",
-            additionalProperties: { type: "string" }
-          }
+            additionalProperties: { type: "string" },
+          },
         },
         required: ["url"],
       },
@@ -356,12 +551,15 @@ export function createToolDefinitions() {
         properties: {
           url: { type: "string", description: "URL to perform POST operation" },
           value: { type: "string", description: "Data to post in the body" },
-          token: { type: "string", description: "Bearer token for authorization" },
-          headers: { 
-            type: "object", 
+          token: {
+            type: "string",
+            description: "Bearer token for authorization",
+          },
+          headers: {
+            type: "object",
             description: "Additional headers to include in the request",
-            additionalProperties: { type: "string" }
-          }
+            additionalProperties: { type: "string" },
+          },
         },
         required: ["url", "value"],
       },
@@ -374,12 +572,15 @@ export function createToolDefinitions() {
         properties: {
           url: { type: "string", description: "URL to perform PUT operation" },
           value: { type: "string", description: "Data to PUT in the body" },
-          token: { type: "string", description: "Bearer token for authorization" },
-          headers: { 
-            type: "object", 
+          token: {
+            type: "string",
+            description: "Bearer token for authorization",
+          },
+          headers: {
+            type: "object",
             description: "Additional headers to include in the request",
-            additionalProperties: { type: "string" }
-          }
+            additionalProperties: { type: "string" },
+          },
         },
         required: ["url", "value"],
       },
@@ -390,14 +591,20 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          url: { type: "string", description: "URL to perform PATCH operation" },
+          url: {
+            type: "string",
+            description: "URL to perform PATCH operation",
+          },
           value: { type: "string", description: "Data to PATCH in the body" },
-          token: { type: "string", description: "Bearer token for authorization" },
-          headers: { 
-            type: "object", 
+          token: {
+            type: "string",
+            description: "Bearer token for authorization",
+          },
+          headers: {
+            type: "object",
             description: "Additional headers to include in the request",
-            additionalProperties: { type: "string" }
-          }
+            additionalProperties: { type: "string" },
+          },
         },
         required: ["url", "value"],
       },
@@ -408,39 +615,87 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          url: { type: "string", description: "URL to perform DELETE operation" },
-          token: { type: "string", description: "Bearer token for authorization" },
-          headers: { 
-            type: "object", 
+          url: {
+            type: "string",
+            description: "URL to perform DELETE operation",
+          },
+          token: {
+            type: "string",
+            description: "Bearer token for authorization",
+          },
+          headers: {
+            type: "object",
             description: "Additional headers to include in the request",
-            additionalProperties: { type: "string" }
-          }
+            additionalProperties: { type: "string" },
+          },
         },
         required: ["url"],
       },
     },
     {
       name: "playwright_expect_response",
-      description: "Ask Playwright to start waiting for a HTTP response. This tool initiates the wait operation but does not wait for its completion.",
+      description:
+        "Ask Playwright to start waiting for a HTTP response. This tool initiates the wait operation but does not wait for its completion.",
       inputSchema: {
         type: "object",
         properties: {
-          id: { type: "string", description: "Unique & arbitrary identifier to be used for retrieving this response later with `Playwright_assert_response`." },
-          url: { type: "string", description: "URL pattern to match in the response." }
+          id: {
+            type: "string",
+            description:
+              "Unique & arbitrary identifier to be used for retrieving this response later with `Playwright_assert_response`.",
+          },
+          url: {
+            type: "string",
+            description: "URL pattern to match in the response.",
+          },
         },
         required: ["id", "url"],
       },
     },
     {
       name: "playwright_assert_response",
-      description: "Wait for and validate a previously initiated HTTP response wait operation.",
+      description:
+        "Wait for and validate a previously initiated HTTP response wait operation.",
       inputSchema: {
         type: "object",
         properties: {
-          id: { type: "string", description: "Identifier of the HTTP response initially expected using `Playwright_expect_response`." },
-          value: { type: "string", description: "Data to expect in the body of the HTTP response. If provided, the assertion will fail if this value is not found in the response body." }
+          id: {
+            type: "string",
+            description:
+              "Identifier of the HTTP response initially expected using `Playwright_expect_response`.",
+          },
+          value: {
+            type: "string",
+            description:
+              "Data to expect in the body of the HTTP response. If provided, the assertion will fail if this value is not found in the response body.",
+          },
         },
         required: ["id"],
+      },
+    },
+    {
+      name: "playwright_wait_for_response",
+      description:
+        "Wait for a network response matching a URL pattern. Checks recently captured responses first (last 30s), then waits for the next matching response. Simpler alternative to expect_response + assert_response for post-action waits.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          urlPattern: {
+            type: "string",
+            description:
+              "Regex pattern to match response URLs (e.g., '/api/verify', 'example\\.com/login')",
+          },
+          timeout: {
+            type: "number",
+            description: "Maximum wait time in milliseconds (default: 30000)",
+          },
+          resourceType: {
+            type: "string",
+            description:
+              "Filter by resource type (e.g., 'fetch', 'xhr', 'document'). Use 'document' to wait for navigation responses.",
+          },
+        },
+        required: ["urlPattern"],
       },
     },
     {
@@ -449,7 +704,11 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          userAgent: { type: "string", description: "Custom User Agent for the Playwright browser instance" }
+          userAgent: {
+            type: "string",
+            description:
+              "Custom User Agent for the Playwright browser instance",
+          },
         },
         required: ["userAgent"],
       },
@@ -465,18 +724,45 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_get_visible_html",
-      description: "Get the HTML content of the current page. By default, all <script> tags are removed from the output unless removeScripts is explicitly set to false.",
+      description:
+        "Get the HTML content of the current page. By default, all <script> tags are removed from the output unless removeScripts is explicitly set to false.",
       inputSchema: {
         type: "object",
         properties: {
-          selector: { type: "string", description: "CSS selector to limit the HTML to a specific container" },
-          removeScripts: { type: "boolean", description: "Remove all script tags from the HTML (default: true)" },
-          removeComments: { type: "boolean", description: "Remove all HTML comments (default: false)" },
-          removeStyles: { type: "boolean", description: "Remove all style tags from the HTML (default: false)" },
-          removeMeta: { type: "boolean", description: "Remove all meta tags from the HTML (default: false)" },
-          cleanHtml: { type: "boolean", description: "Perform comprehensive HTML cleaning (default: false)" },
-          minify: { type: "boolean", description: "Minify the HTML output (default: false)" },
-          maxLength: { type: "number", description: "Maximum number of characters to return (default: 20000)" }
+          selector: {
+            type: "string",
+            description:
+              "CSS selector to limit the HTML to a specific container",
+          },
+          removeScripts: {
+            type: "boolean",
+            description: "Remove all script tags from the HTML (default: true)",
+          },
+          removeComments: {
+            type: "boolean",
+            description: "Remove all HTML comments (default: false)",
+          },
+          removeStyles: {
+            type: "boolean",
+            description: "Remove all style tags from the HTML (default: false)",
+          },
+          removeMeta: {
+            type: "boolean",
+            description: "Remove all meta tags from the HTML (default: false)",
+          },
+          cleanHtml: {
+            type: "boolean",
+            description: "Perform comprehensive HTML cleaning (default: false)",
+          },
+          minify: {
+            type: "boolean",
+            description: "Minify the HTML output (default: false)",
+          },
+          maxLength: {
+            type: "number",
+            description:
+              "Maximum number of characters to return (default: 20000)",
+          },
         },
         required: [],
       },
@@ -505,8 +791,14 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          sourceSelector: { type: "string", description: "CSS selector for the element to drag" },
-          targetSelector: { type: "string", description: "CSS selector for the target location" }
+          sourceSelector: {
+            type: "string",
+            description: "CSS selector for the element to drag",
+          },
+          targetSelector: {
+            type: "string",
+            description: "CSS selector for the target location",
+          },
         },
         required: ["sourceSelector", "targetSelector"],
       },
@@ -517,10 +809,24 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          key: { type: "string", description: "Key to press (e.g. 'Enter', 'ArrowDown', 'a')" },
-          selector: { type: "string", description: "Optional CSS selector to focus before pressing key" },
-          nth: { type: "number", description: "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)" },
-          withinSelector: { type: "string", description: "Scope the search: find the target selector only within elements matching this selector" },
+          key: {
+            type: "string",
+            description: "Key to press (e.g. 'Enter', 'ArrowDown', 'a')",
+          },
+          selector: {
+            type: "string",
+            description: "Optional CSS selector to focus before pressing key",
+          },
+          nth: {
+            type: "number",
+            description:
+              "0-based index when multiple elements match the selector (e.g., 0 for first, 1 for second)",
+          },
+          withinSelector: {
+            type: "string",
+            description:
+              "Scope the search: find the target selector only within elements matching this selector",
+          },
         },
         required: ["key"],
       },
@@ -531,10 +837,22 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          outputPath: { type: "string", description: "Directory path where PDF will be saved" },
-          filename: { type: "string", description: "Name of the PDF file (default: page.pdf)" },
-          format: { type: "string", description: "Page format (e.g. 'A4', 'Letter')" },
-          printBackground: { type: "boolean", description: "Whether to print background graphics" },
+          outputPath: {
+            type: "string",
+            description: "Directory path where PDF will be saved",
+          },
+          filename: {
+            type: "string",
+            description: "Name of the PDF file (default: page.pdf)",
+          },
+          format: {
+            type: "string",
+            description: "Page format (e.g. 'A4', 'Letter')",
+          },
+          printBackground: {
+            type: "boolean",
+            description: "Whether to print background graphics",
+          },
           margin: {
             type: "object",
             description: "Page margins",
@@ -542,9 +860,9 @@ export function createToolDefinitions() {
               top: { type: "string" },
               right: { type: "string" },
               bottom: { type: "string" },
-              left: { type: "string" }
-            }
-          }
+              left: { type: "string" },
+            },
+          },
         },
         required: ["outputPath"],
       },
@@ -555,25 +873,40 @@ export function createToolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
-          selector: { type: "string", description: "CSS selector for the link to click" },
+          selector: {
+            type: "string",
+            description: "CSS selector for the link to click",
+          },
         },
         required: ["selector"],
       },
     },
     {
       name: "playwright_wait_for",
-      description: "Wait for a selector or text to appear on the page. Use this instead of arbitrary sleeps to wait for page state.",
+      description:
+        "Wait for a selector or text to appear on the page. Use this instead of arbitrary sleeps to wait for page state.",
       inputSchema: {
         type: "object",
         properties: {
           selector: { type: "string", description: "CSS selector to wait for" },
-          text: { type: "string", description: "Text content to wait for on the page" },
+          text: {
+            type: "string",
+            description: "Text content to wait for on the page",
+          },
           state: {
             type: "string",
             description: "Element state to wait for (default: visible)",
-            enum: ["attached", "detached", "visible", "hidden"]
+            enum: ["attached", "detached", "visible", "hidden"],
           },
-          timeout: { type: "number", description: "Maximum wait time in milliseconds (default: 30000)" },
+          timeout: {
+            type: "number",
+            description: "Maximum wait time in milliseconds (default: 30000)",
+          },
+          strict: {
+            type: "boolean",
+            description:
+              "If true, require exactly one matching element. If false (default), matches the first element found.",
+          },
         },
         required: [],
       },
@@ -581,105 +914,173 @@ export function createToolDefinitions() {
     // --- New tools ---
     {
       name: "playwright_iframe_evaluate",
-      description: "Execute JavaScript inside an iframe. Identify the iframe by CSS selector (iframeSelector) or URL pattern (urlPattern).",
+      description:
+        "Execute JavaScript inside an iframe. Identify the iframe by CSS selector (iframeSelector) or URL pattern (urlPattern).",
       inputSchema: {
         type: "object",
         properties: {
-          iframeSelector: { type: "string", description: "CSS selector for the iframe element" },
-          urlPattern: { type: "string", description: "URL substring to match the iframe (alternative to iframeSelector)" },
-          script: { type: "string", description: "JavaScript code to execute inside the iframe" },
+          iframeSelector: {
+            type: "string",
+            description: "CSS selector for the iframe element",
+          },
+          urlPattern: {
+            type: "string",
+            description:
+              "URL substring to match the iframe (alternative to iframeSelector)",
+          },
+          script: {
+            type: "string",
+            description: "JavaScript code to execute inside the iframe",
+          },
         },
         required: ["script"],
       },
     },
     {
       name: "playwright_snapshot",
-      description: "Take an accessibility tree snapshot of the current page. Returns a text representation of the a11y tree including roles, names, values, and states. Includes iframe subtrees by default.",
+      description:
+        "Take an accessibility tree snapshot of the current page. Returns a text representation of the a11y tree including roles, names, values, and states. Includes iframe subtrees by default.",
       inputSchema: {
         type: "object",
         properties: {
-          interestingOnly: { type: "boolean", description: "Only include nodes with interesting attributes (default: true)" },
-          includeIframes: { type: "boolean", description: "Include iframe subtrees (default: true)" },
+          interestingOnly: {
+            type: "boolean",
+            description:
+              "Only include nodes with interesting attributes (default: true)",
+          },
+          includeIframes: {
+            type: "boolean",
+            description: "Include iframe subtrees (default: true)",
+          },
         },
         required: [],
       },
     },
     {
       name: "playwright_network_requests",
-      description: "List captured network requests with optional filtering. Requests are captured automatically after browser launch.",
+      description:
+        "List captured network requests with optional filtering. Requests are captured automatically after browser launch.",
       inputSchema: {
         type: "object",
         properties: {
-          urlPattern: { type: "string", description: "Regex pattern to filter by URL" },
-          method: { type: "string", description: "HTTP method to filter (GET, POST, etc.)" },
-          statusMin: { type: "number", description: "Minimum status code to include" },
-          statusMax: { type: "number", description: "Maximum status code to include" },
-          limit: { type: "number", description: "Maximum number of requests to return (default: 50)" },
-          includeIncomplete: { type: "boolean", description: "Include failed/cancelled requests that had no response (default: false)" },
-          since: { type: "string", description: "Show only requests from this time onwards. Relative duration: '30s', '5m', '1h'. Or absolute epoch ms as string." },
-          resourceType: { type: "string", description: "Filter by resource type (e.g., 'fetch', 'xhr', 'document', 'script', 'stylesheet', 'image', 'font', 'websocket')." },
+          urlPattern: {
+            type: "string",
+            description: "Regex pattern to filter by URL",
+          },
+          method: {
+            type: "string",
+            description: "HTTP method to filter (GET, POST, etc.)",
+          },
+          statusMin: {
+            type: "number",
+            description: "Minimum status code to include",
+          },
+          statusMax: {
+            type: "number",
+            description: "Maximum status code to include",
+          },
+          limit: {
+            type: "number",
+            description: "Maximum number of requests to return (default: 50)",
+          },
+          includeIncomplete: {
+            type: "boolean",
+            description:
+              "Include failed/cancelled requests that had no response (default: false)",
+          },
+          since: {
+            type: "string",
+            description:
+              "Show only requests from this time onwards. Relative duration: '30s', '5m', '1h'. Or absolute epoch ms as string.",
+          },
+          resourceType: {
+            type: "string",
+            description:
+              "Filter by resource type (e.g., 'fetch', 'xhr', 'document', 'script', 'stylesheet', 'image', 'font', 'websocket').",
+          },
         },
         required: [],
       },
     },
     {
       name: "playwright_get_network_request",
-      description: "Get full details of a specific captured network request by its ID, including headers, body, and response.",
+      description:
+        "Get full details of a specific captured network request by its ID, including headers, body, and response.",
       inputSchema: {
         type: "object",
         properties: {
-          id: { type: "number", description: "Request ID from playwright_network_requests" },
+          id: {
+            type: "number",
+            description: "Request ID from playwright_network_requests",
+          },
         },
         required: ["id"],
       },
     },
     {
       name: "playwright_start_trace",
-      description: "Start recording a Playwright trace. Records screenshots, snapshots, and HAR. Works on all browsers.",
+      description:
+        "Start recording a Playwright trace. Records screenshots, snapshots, and HAR. Works on all browsers.",
       inputSchema: {
         type: "object",
         properties: {
-          screenshots: { type: "boolean", description: "Include screenshots in trace (default: true)" },
-          snapshots: { type: "boolean", description: "Include snapshots in trace (default: true)" },
+          screenshots: {
+            type: "boolean",
+            description: "Include screenshots in trace (default: true)",
+          },
+          snapshots: {
+            type: "boolean",
+            description: "Include snapshots in trace (default: true)",
+          },
         },
         required: [],
       },
     },
     {
       name: "playwright_stop_trace",
-      description: "Stop recording and save the Playwright trace to a file. View with: npx playwright show-trace <path>",
+      description:
+        "Stop recording and save the Playwright trace to a file. View with: npx playwright show-trace <path>",
       inputSchema: {
         type: "object",
         properties: {
-          outputPath: { type: "string", description: "Path to save the trace file (default: temp directory)" },
+          outputPath: {
+            type: "string",
+            description:
+              "Path to save the trace file (default: temp directory)",
+          },
         },
         required: [],
       },
     },
     {
       name: "playwright_network_config",
-      description: "Configure network capture filters and buffer size at runtime. Set URL include/exclude patterns, resource type filters, and buffer size. Filters apply to NEW requests only (already-captured requests are not removed). Can be called before browser launch to pre-configure.",
+      description:
+        "Configure network capture filters and buffer size at runtime. Set URL include/exclude patterns, resource type filters, and buffer size. Filters apply to NEW requests only (already-captured requests are not removed). Can be called before browser launch to pre-configure.",
       inputSchema: {
         type: "object",
         properties: {
           includePatterns: {
             type: "array",
             items: { type: "string" },
-            description: "Regex patterns — only capture URLs matching at least one pattern. Pass empty array to clear. Omit to keep current."
+            description:
+              "Regex patterns — only capture URLs matching at least one pattern. Pass empty array to clear. Omit to keep current.",
           },
           excludePatterns: {
             type: "array",
             items: { type: "string" },
-            description: "Regex patterns — drop URLs matching any pattern (e.g., ['analytics', 'facebook\\.com', '\\.jpg$']). Pass empty array to clear."
+            description:
+              "Regex patterns — drop URLs matching any pattern (e.g., ['analytics', 'facebook\\.com', '\\.jpg$']). Pass empty array to clear.",
           },
           resourceTypes: {
             type: "array",
             items: { type: "string" },
-            description: "Only capture these resource types (e.g., 'fetch', 'xhr', 'document', 'script', 'stylesheet', 'image', 'font', 'websocket'). Pass empty array to clear. Omit to keep current."
+            description:
+              "Only capture these resource types (e.g., 'fetch', 'xhr', 'document', 'script', 'stylesheet', 'image', 'font', 'websocket'). Pass empty array to clear. Omit to keep current.",
           },
           maxRequests: {
             type: "number",
-            description: "Maximum requests to keep in buffer. 0 = unlimited (default). Set to e.g. 500 to cap memory usage."
+            description:
+              "Maximum requests to keep in buffer. 0 = unlimited (default). Set to e.g. 500 to cap memory usage.",
           },
         },
         required: [],
@@ -687,19 +1088,37 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_dump_network",
-      description: "Export all captured network requests to a JSON file on disk. Includes request/response headers and bodies. Avoids context window bloat from fetching requests one-by-one.",
+      description:
+        "Export all captured network requests to a JSON file on disk. Includes request/response headers and bodies. Avoids context window bloat from fetching requests one-by-one.",
       inputSchema: {
         type: "object",
         properties: {
-          outputPath: { type: "string", description: "File path to write the JSON export (absolute path recommended)" },
+          outputPath: {
+            type: "string",
+            description:
+              "File path to write the JSON export (absolute path recommended)",
+          },
           filter: {
             type: "object",
-            description: "Optional filter to apply before export (same as playwright_network_requests filters)",
+            description:
+              "Optional filter to apply before export (same as playwright_network_requests filters)",
             properties: {
-              urlPattern: { type: "string", description: "Regex pattern to filter by URL" },
-              method: { type: "string", description: "HTTP method to filter (GET, POST, etc.)" },
-              statusMin: { type: "number", description: "Minimum status code to include" },
-              statusMax: { type: "number", description: "Maximum status code to include" },
+              urlPattern: {
+                type: "string",
+                description: "Regex pattern to filter by URL",
+              },
+              method: {
+                type: "string",
+                description: "HTTP method to filter (GET, POST, etc.)",
+              },
+              statusMin: {
+                type: "number",
+                description: "Minimum status code to include",
+              },
+              statusMax: {
+                type: "number",
+                description: "Maximum status code to include",
+              },
             },
           },
         },
@@ -708,7 +1127,8 @@ export function createToolDefinitions() {
     },
     {
       name: "playwright_clear_network",
-      description: "Clear the network request capture buffer. Removes all stored requests and resets the request ID counter.",
+      description:
+        "Clear the network request capture buffer. Removes all stored requests and resets the request ID counter.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -745,6 +1165,7 @@ export const BROWSER_TOOLS = [
   "playwright_select_page",
   "playwright_expect_response",
   "playwright_assert_response",
+  "playwright_wait_for_response",
   "playwright_custom_user_agent",
   "playwright_get_visible_text",
   "playwright_get_visible_html",
@@ -768,15 +1189,15 @@ export const API_TOOLS = [
   "playwright_post",
   "playwright_put",
   "playwright_delete",
-  "playwright_patch"
+  "playwright_patch",
 ];
 
 // Codegen tools
 export const CODEGEN_TOOLS = [
-  'start_codegen_session',
-  'end_codegen_session',
-  'get_codegen_session',
-  'clear_codegen_session'
+  "start_codegen_session",
+  "end_codegen_session",
+  "get_codegen_session",
+  "clear_codegen_session",
 ];
 
 // All available tools
